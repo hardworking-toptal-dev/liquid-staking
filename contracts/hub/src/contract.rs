@@ -4,7 +4,9 @@ use cosmwasm_std::{
 };
 use cw20::Cw20ReceiveMsg;
 
-use pfc_steak::hub::{CallbackMsg, ExecuteMsg, FeeType, InstantiateMsg, MigrateMsg, QueryMsg, ReceiveMsg};
+use pfc_steak::hub::{
+    CallbackMsg, ExecuteMsg, FeeType, InstantiateMsg, MigrateMsg, QueryMsg, ReceiveMsg,
+};
 
 use crate::helpers::{get_denom_balance, unwrap_reply};
 use crate::migrations::ConfigV100;
@@ -74,9 +76,10 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         ExecuteMsg::Rebalance { minimum } => execute::rebalance(deps, env, minimum),
         ExecuteMsg::Reconcile {} => execute::reconcile(deps, env),
         ExecuteMsg::SubmitBatch {} => execute::submit_batch(deps, env),
-        ExecuteMsg::TransferFeeAccount { fee_account_type,new_fee_account } => {
-            execute::transfer_fee_account(deps, info.sender, fee_account_type, new_fee_account)
-        }
+        ExecuteMsg::TransferFeeAccount {
+            fee_account_type,
+            new_fee_account,
+        } => execute::transfer_fee_account(deps, info.sender, fee_account_type, new_fee_account),
         ExecuteMsg::UpdateFee { new_fee } => execute::update_fee(deps, info.sender, new_fee),
         ExecuteMsg::Callback(callback_msg) => callback(deps, env, info, callback_msg),
         ExecuteMsg::PauseValidator { validator } => {
@@ -85,8 +88,9 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         ExecuteMsg::UnPauseValidator { validator } => {
             execute::unpause_validator(deps, env, info.sender, validator)
         }
-        ExecuteMsg::SetUnbondPeriod { unbond_period } =>  execute::set_unbond_period(deps, env, info.sender, unbond_period),
-
+        ExecuteMsg::SetUnbondPeriod { unbond_period } => {
+            execute::set_unbond_period(deps, env, info.sender, unbond_period)
+        }
     }
 }
 
@@ -199,22 +203,30 @@ pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> StdResult<Response>
             "0" => {
                 let state = State::default();
                 let owner = state.owner.load(deps.storage)?;
-                state.denom.save(deps.storage, &"uluna".to_string())?;
+                state
+                    .denom
+                    .save(deps.storage, &"native_token".to_string())?;
                 state.fee_account.save(deps.storage, &owner)?;
                 state.max_fee_rate.save(deps.storage, &Decimal::zero())?;
                 state.fee_rate.save(deps.storage, &Decimal::zero())?;
-                state.fee_account_type.save(deps.storage,&FeeType::Wallet)?;
-                ConfigV100::upgrade_stores(deps.storage,&deps.querier, env.contract.address)?;
+                state
+                    .fee_account_type
+                    .save(deps.storage, &FeeType::Wallet)?;
+                ConfigV100::upgrade_stores(deps.storage, &deps.querier, env.contract.address)?;
             }
             "2.1.4" => {
                 let state = State::default();
-                ConfigV100::upgrade_stores(deps.storage, &deps.querier,env.contract.address)?;
-                state.fee_account_type.save(deps.storage,&FeeType::Wallet)?;
+                ConfigV100::upgrade_stores(deps.storage, &deps.querier, env.contract.address)?;
+                state
+                    .fee_account_type
+                    .save(deps.storage, &FeeType::Wallet)?;
             }
             "2.1.5" => {
-                ConfigV100::upgrade_stores(deps.storage, &deps.querier,env.contract.address)?;
+                ConfigV100::upgrade_stores(deps.storage, &deps.querier, env.contract.address)?;
                 let state = State::default();
-                state.fee_account_type.save(deps.storage,&FeeType::Wallet)?;
+                state
+                    .fee_account_type
+                    .save(deps.storage, &FeeType::Wallet)?;
             }
             "2.1.6" | "2.1.7" => {
                 let state = State::default();
@@ -225,12 +237,15 @@ pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> StdResult<Response>
                     &get_denom_balance(&deps.querier, env.contract.address, denom)?,
                 )?;
 
-                state.fee_account_type.save(deps.storage,&FeeType::Wallet)?;
-
-            },
+                state
+                    .fee_account_type
+                    .save(deps.storage, &FeeType::Wallet)?;
+            }
             "2.1.8" => {
                 let state = State::default();
-                state.fee_account_type.save(deps.storage,&FeeType::Wallet)?;
+                state
+                    .fee_account_type
+                    .save(deps.storage, &FeeType::Wallet)?;
             }
             _ => {}
         },

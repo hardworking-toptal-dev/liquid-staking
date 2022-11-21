@@ -1,7 +1,10 @@
 use std::str::FromStr;
 
-use cosmwasm_std::{Addr, BalanceResponse, BankQuery, Coin, QuerierWrapper, QueryRequest, Reply, StdError, StdResult, SubMsgResponse, Uint128};
-use cw20::{ Cw20QueryMsg, TokenInfoResponse};
+use cosmwasm_std::{
+    Addr, BalanceResponse, BankQuery, Coin, QuerierWrapper, QueryRequest, Reply, StdError,
+    StdResult, SubMsgResponse, Uint128,
+};
+use cw20::{Cw20QueryMsg, TokenInfoResponse};
 
 use crate::types::Delegation;
 
@@ -20,7 +23,7 @@ pub(crate) fn query_cw20_total_supply(
     Ok(token_info.total_supply)
 }
 
-/// Query the amounts of Luna a staker is delegating to a specific validator
+/// Query the amounts of Native Token a staker is delegating to a specific validator
 pub(crate) fn query_delegation(
     querier: &QuerierWrapper,
     validator: &str,
@@ -37,7 +40,7 @@ pub(crate) fn query_delegation(
     })
 }
 
-/// Query the amounts of Luna a staker is delegating to each of the validators specified
+/// Query the amounts of Native Token a staker is delegating to each of the validators specified
 pub(crate) fn query_delegations(
     querier: &QuerierWrapper,
     validators: &[String],
@@ -100,7 +103,11 @@ pub(crate) fn parse_received_fund(funds: &[Coin], denom: &str) -> StdResult<Uint
     Ok(fund.amount)
 }
 
-pub fn get_denom_balance( querier: &QuerierWrapper,  account_addr: Addr, denom:String )-> StdResult<Uint128> {
+pub fn get_denom_balance(
+    querier: &QuerierWrapper,
+    account_addr: Addr,
+    denom: String,
+) -> StdResult<Uint128> {
     let balance: BalanceResponse = querier.query(&QueryRequest::Bank(BankQuery::Balance {
         address: account_addr.to_string(),
         denom,

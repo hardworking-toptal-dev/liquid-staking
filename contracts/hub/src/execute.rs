@@ -86,7 +86,7 @@ pub fn instantiate(deps: DepsMut, env: Env, msg: InstantiateMsg) -> StdResult<Re
                 marketing: msg.marketing,
             })?,
             funds: vec![],
-            label: msg.label.unwrap_or_else(||"steak_token".to_string()),
+            label: msg.label.unwrap_or_else(|| "steak_token".to_string()),
         }),
         REPLY_INSTANTIATE_TOKEN,
     )))
@@ -118,11 +118,11 @@ pub fn register_steak_token(deps: DepsMut, response: SubMsgResponse) -> StdResul
 // Bonding and harvesting logics
 //--------------------------------------------------------------------------------------------------
 
-/// NOTE: In a previous implementation, we split up the deposited Luna over all validators, so that
+/// NOTE: In a previous implementation, we split up the deposited Native Token over all validators, so that
 /// they all have the same amount of delegation. This is however quite gas-expensive: $1.5 cost in
 /// the case of 15 validators.
 ///
-/// To save gas for users, now we simply delegate all deposited Luna to the validator with the
+/// To save gas for users, now we simply delegate all deposited Native Token to the validator with the
 /// smallest amount of delegation. If delegations become severely unbalance as a result of this
 /// (e.g. when a single user makes a very big deposit), anyone can invoke `ExecuteMsg::Rebalance`
 /// to balance the delegations.
@@ -284,15 +284,14 @@ pub fn reinvest(deps: DepsMut, env: Env) -> StdResult<Response> {
         let fee_type = state.fee_account_type.load(deps.storage)?;
 
         let send_msgs = match fee_type {
-            FeeType::Wallet =>
-                vec![CosmosMsg::Bank(BankMsg::Send {
+            FeeType::Wallet => vec![CosmosMsg::Bank(BankMsg::Send {
                 to_address: fee_account.to_string(),
                 amount: vec![Coin::new(fee_amount.into(), &denom)],
             })],
             FeeType::FeeSplit => {
-                let msg = pfc_fee_split::fee_split_msg::ExecuteMsg::Deposit{ flush:false};
+                let msg = pfc_fee_split::fee_split_msg::ExecuteMsg::Deposit { flush: false };
 
-               vec![msg .into_cosmos_msg(fee_account, vec![Coin::new(fee_amount.into(), &denom)])? ]
+                vec![msg.into_cosmos_msg(fee_account, vec![Coin::new(fee_amount.into(), &denom)])?]
             }
         };
         Ok(Response::new()
@@ -438,10 +437,10 @@ pub fn submit_batch(deps: DepsMut, env: Env) -> StdResult<Response> {
     // NOTE: Regarding the `amount_unclaimed` value
     //
     // If validators misbehave and get slashed during the unbonding period, the contract can receive
-    // LESS Luna than `amount_to_unbond` when unbonding finishes!
+    // LESS Native Token than `amount_to_unbond` when unbonding finishes!
     //
     // In this case, users who invokes `withdraw_unbonded` will have their txs failed as the contract
-    // does not have enough Luna balance.
+    // does not have enough Native Token balance.
     //
     // I don't have a solution for this... other than to manually fund contract with the slashed amount.
     state.previous_batches.save(

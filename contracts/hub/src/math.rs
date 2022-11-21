@@ -10,7 +10,7 @@ use crate::types::{Delegation, Redelegation, Undelegation};
 // Minting/burning logics
 //--------------------------------------------------------------------------------------------------
 
-/// Compute the amount of Steak token to mint for a specific Luna stake amount. If current total
+/// Compute the amount of Steak token to mint for a specific Native Token stake amount. If current total
 /// staked amount is zero, we use 1 usteak = 1 native; otherwise, we calculate base on the current
 /// native per ustake ratio.
 pub(crate) fn compute_mint_amount(
@@ -64,7 +64,7 @@ pub(crate) fn compute_undelegations(
     let mut new_undelegations: Vec<Undelegation> = vec![];
     let mut native_available = native_to_unbond.u128();
     for (i, d) in current_delegations.iter().enumerate() {
-        let remainder_for_validator: u128 = u128::from( (i+1) as u128 <=remainder) as u128 ;
+        let remainder_for_validator: u128 = u128::from((i + 1) as u128 <= remainder) as u128;
         let native_for_validator = native_per_validator + remainder_for_validator;
 
         let mut native_to_undelegate = if d.amount < native_for_validator {
@@ -109,7 +109,7 @@ pub(crate) fn compute_redelegations_for_removal(
     let mut new_redelegations: Vec<Redelegation> = vec![];
     let mut native_available = delegation_to_remove.amount;
     for (i, d) in current_delegations.iter().enumerate() {
-        let remainder_for_validator: u128 =  u128::from( (i+1) as u128 <=remainder) as u128 ;
+        let remainder_for_validator: u128 = u128::from((i + 1) as u128 <= remainder) as u128;
         let native_for_validator = native_per_validator + remainder_for_validator;
 
         let mut native_to_redelegate = if d.amount > native_for_validator {
@@ -143,9 +143,9 @@ pub(crate) fn compute_redelegations_for_removal(
 ///
 /// This algorithm does not guarantee the minimal number of moves, but is the best I can some up with...
 pub(crate) fn compute_redelegations_for_rebalancing(
-    validators_active:Vec<String>,
+    validators_active: Vec<String>,
     current_delegations: &[Delegation],
-    min_difference: Uint128
+    min_difference: Uint128,
 ) -> Vec<Redelegation> {
     let native_staked: u128 = current_delegations.iter().map(|d| d.amount).sum();
     let validator_count = validators_active.len() as u128;
@@ -160,33 +160,32 @@ pub(crate) fn compute_redelegations_for_rebalancing(
     let mut src_delegations: Vec<Delegation> = vec![];
     let mut dst_delegations: Vec<Delegation> = vec![];
     for (i, d) in current_delegations.iter().enumerate() {
-        let remainder_for_validator: u128 =  u128::from( (i+1) as u128 <=remainder) as u128 ;
+        let remainder_for_validator: u128 = u128::from((i + 1) as u128 <= remainder) as u128;
         let native_for_validator = native_per_validator + remainder_for_validator;
-            // eprintln!("{} amount ={} native={} min={}", d.validator, d.amount, native_for_validator, min_difference);
-            match d.amount.cmp(&native_for_validator) {
-                Ordering::Greater => {
-                    if d.amount - native_for_validator > min_difference.u128() {
-                        src_delegations.push(Delegation::new(
-                            &d.validator,
-                            d.amount - native_for_validator,
-                            &d.denom,
-                        ));
-                    }
+        // eprintln!("{} amount ={} native={} min={}", d.validator, d.amount, native_for_validator, min_difference);
+        match d.amount.cmp(&native_for_validator) {
+            Ordering::Greater => {
+                if d.amount - native_for_validator > min_difference.u128() {
+                    src_delegations.push(Delegation::new(
+                        &d.validator,
+                        d.amount - native_for_validator,
+                        &d.denom,
+                    ));
                 }
-                Ordering::Less => {
-                    if validators_active.contains(&d.validator) &&
-                         native_for_validator - d.amount > min_difference.u128() {
-                            dst_delegations.push(Delegation::new(
-                                &d.validator,
-                                native_for_validator - d.amount,
-                                &d.denom,
-                            ));
-
-                    }
-                }
-                Ordering::Equal => (),
             }
-
+            Ordering::Less => {
+                if validators_active.contains(&d.validator)
+                    && native_for_validator - d.amount > min_difference.u128()
+                {
+                    dst_delegations.push(Delegation::new(
+                        &d.validator,
+                        native_for_validator - d.amount,
+                        &d.denom,
+                    ));
+                }
+            }
+            Ordering::Equal => (),
+        }
     }
 
     let mut new_redelegations: Vec<Redelegation> = vec![];
@@ -206,15 +205,14 @@ pub(crate) fn compute_redelegations_for_rebalancing(
         } else {
             dst_delegations[0].amount -= native_to_redelegate;
         }
-            new_redelegations.push(Redelegation::new(
-                &src_delegation.validator,
-                &dst_delegation.validator,
-                native_to_redelegate,
-                &src_delegation.denom,
-            ));
-
+        new_redelegations.push(Redelegation::new(
+            &src_delegation.validator,
+            &dst_delegation.validator,
+            native_to_redelegate,
+            &src_delegation.denom,
+        ));
     }
-   // eprintln!("new redelegations ={:?}", new_redelegations);
+    // eprintln!("new redelegations ={:?}", new_redelegations);
 
     new_redelegations
 }
@@ -235,7 +233,7 @@ pub(crate) fn reconcile_batches(batches: &mut [Batch], native_to_deduct: Uint128
     let remainder = native_to_deduct.u128() % batch_count;
 
     for (i, batch) in batches.iter_mut().enumerate() {
-        let remainder_for_batch: u128 =  u128::from( (i+1) as u128 <=remainder) as u128 ;
+        let remainder_for_batch: u128 = u128::from((i + 1) as u128 <= remainder) as u128;
         let native_for_batch = native_per_batch + remainder_for_batch;
 
         batch.amount_unclaimed -= Uint128::new(native_for_batch);

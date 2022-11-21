@@ -8,7 +8,7 @@ A previous version ([v1.0.0-rc0](https://github.com/st4k3h0us3/steak-contracts/r
 
 | Contract                           | Description                                            |
 | ---------------------------------- | ------------------------------------------------------ |
-| [`steak-hub`](./contracts/hub)     | Manages minting/burning of Steak token and bonded Luna |
+| [`steak-hub`](./contracts/hub)     | Manages minting/burning of Steak token and bonded Native Token |
 | [`steak-token`](./contracts/token) | Modified CW20 token contract                           |
 
 ## Deployment

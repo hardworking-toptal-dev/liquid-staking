@@ -36,7 +36,7 @@ pub struct InstantiateMsg {
     /// label for the CW20 token we create
     pub label: Option<String>,
     /// Marketing info for the CW20 we create
-    pub marketing: Option<Cw20InstantiateMarketingInfo>
+    pub marketing: Option<Cw20InstantiateMarketingInfo>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -44,11 +44,11 @@ pub struct InstantiateMsg {
 pub enum ExecuteMsg {
     /// Implements the Cw20 receiver interface
     Receive(Cw20ReceiveMsg),
-    /// Bond specified amount of Luna
+    /// Bond specified amount of Native Token
     Bond { receiver: Option<String> },
-    /// Withdraw Luna that have finished unbonding in previous batches
+    /// Withdraw Native Token that have finished unbonding in previous batches
     WithdrawUnbonded { receiver: Option<String> },
-    /// Withdraw Luna that has finished unbonding in previous batches, for given address
+    /// Withdraw Native Token that has finished unbonding in previous batches, for given address
     WithdrawUnbondedAdmin { address: String },
     /// Add a validator to the whitelist; callable by the owner
     AddValidator { validator: String },
@@ -66,11 +66,11 @@ pub enum ExecuteMsg {
     TransferOwnership { new_owner: String },
     /// Accept an ownership transfer
     AcceptOwnership {},
-    /// Claim staking rewards, swap all for Luna, and restake
+    /// Claim staking rewards, swap all for Native Token, and restake
     Harvest {},
-    /// Use redelegations to balance the amounts of Luna delegated to validators
+    /// Use redelegations to balance the amounts of Native Token delegated to validators
     Rebalance { minimum: Uint128 },
-    /// Update Luna amounts in unbonding batches to reflect any slashing or rounding errors
+    /// Update Native Token amounts in unbonding batches to reflect any slashing or rounding errors
     Reconcile {},
     /// Submit the current pending batch of unbonding requests to be unbonded
     SubmitBatch {},
@@ -88,7 +88,7 @@ pub enum ExecuteMsg {
     Callback(CallbackMsg),
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq,PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ReceiveMsg {
     /// Submit an unbonding request to the current unbonding queue; automatically invokes `unbond`
@@ -96,10 +96,10 @@ pub enum ReceiveMsg {
     QueueUnbond { receiver: Option<String> },
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug,Eq, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum CallbackMsg {
-    /// Following the swaps, stake the Luna acquired to the whitelisted validators
+    /// Following the swaps, stake the Native Token acquired to the whitelisted validators
     Reinvest {},
 }
 
@@ -113,7 +113,7 @@ impl CallbackMsg {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq,PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     /// The contract's configurations. Response: `ConfigResponse`
@@ -145,7 +145,7 @@ pub enum QueryMsg {
     },
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq,PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
 pub struct ConfigResponse {
     /// Account who can call certain privileged functions
     pub owner: String,
@@ -160,7 +160,7 @@ pub struct ConfigResponse {
     /// denomination of coins to steak (uXXXX)
     pub denom: String,
     /// type of account to send the fees too
-    pub fee_type:String,
+    pub fee_type: String,
     /// Fee Account to send fees too
     pub fee_account: String,
     /// Fee "1.00 = 100%"
@@ -171,7 +171,7 @@ pub struct ConfigResponse {
     pub validators: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug,Eq, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
 pub struct StateResponse {
     /// Total supply to the Steak token
     pub total_usteak: Uint128,
@@ -183,7 +183,7 @@ pub struct StateResponse {
     pub unlocked_coins: Vec<Coin>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq,PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
 pub struct PendingBatch {
     /// ID of this batch
     pub id: u64,
@@ -193,7 +193,7 @@ pub struct PendingBatch {
     pub est_unbond_start_time: u64,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq,PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
 pub struct Batch {
     /// ID of this batch
     pub id: u64,
@@ -207,7 +207,7 @@ pub struct Batch {
     pub est_unbond_end_time: u64,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq,PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
 pub struct UnbondRequest {
     /// ID of the batch
     pub id: u64,
@@ -217,7 +217,7 @@ pub struct UnbondRequest {
     pub shares: Uint128,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, Eq,PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
 pub struct UnbondRequestsByBatchResponseItem {
     /// The user's address
     pub user: String,

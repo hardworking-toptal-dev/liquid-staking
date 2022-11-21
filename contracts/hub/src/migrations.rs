@@ -4,8 +4,8 @@ use cosmwasm_std::{Addr, Order, QuerierWrapper, StdError, StdResult, Storage, Ui
 use cw_storage_plus::{Index, IndexList, IndexedMap, MultiIndex};
 use pfc_steak::hub::Batch;
 
-use serde::{Deserialize, Serialize};
 use crate::helpers::get_denom_balance;
+use serde::{Deserialize, Serialize};
 
 const BATCH_KEY_V100: &str = "previous_batches";
 const BATCH_KEY_RECONCILED_V100: &str = "previous_batches__reconciled";
@@ -19,7 +19,7 @@ pub struct BatchV100 {
     /// Total amount of shares remaining this batch. Each `usteak` burned = 1 share
     pub total_shares: Uint128,
     /// Amount of `denom` in this batch that have not been claimed
-    pub uluna_unclaimed: Uint128,
+    pub native_token_unclaimed: Uint128,
     /// Estimated time when this batch will finish unbonding
     pub est_unbond_end_time: u64,
 }
@@ -28,7 +28,11 @@ pub struct BatchV100 {
 pub struct ConfigV100 {}
 
 impl ConfigV100 {
-    pub fn upgrade_stores(storage: &mut dyn Storage, querier: &QuerierWrapper, contract_addr: Addr,) -> StdResult<Self> {
+    pub fn upgrade_stores(
+        storage: &mut dyn Storage,
+        querier: &QuerierWrapper,
+        contract_addr: Addr,
+    ) -> StdResult<Self> {
         if BATCH_KEY_V101 == BATCH_KEY_V100 {
             Err(StdError::generic_err(
                 "STEAK: Migration Failed. Config keys are the same",
@@ -46,9 +50,9 @@ impl ConfigV100 {
                 IndexedMap::new(BATCH_KEY_V100, pb_indexes_v100);
             let state = State::default();
             let denom = state.denom.load(storage)?;
-            state.prev_denom.save(storage, &get_denom_balance(querier,contract_addr, denom)?)?;
-
-
+            state
+                .prev_denom
+                .save(storage, &get_denom_balance(querier, contract_addr, denom)?)?;
 
             let old_batches = old
                 .range(storage, None, None, Order::Ascending)
@@ -59,14 +63,14 @@ impl ConfigV100 {
                 })
                 .collect::<StdResult<Vec<BatchV100>>>()?;
 
-          {
+            {
                 old_batches.into_iter().for_each(|v| {
                     {
                         let batch: Batch = Batch {
                             id: v.id,
                             reconciled: v.reconciled,
                             total_shares: v.total_shares,
-                            amount_unclaimed: v.uluna_unclaimed,
+                            amount_unclaimed: v.native_token_unclaimed,
                             est_unbond_end_time: v.est_unbond_end_time,
                         };
                         state.previous_batches.save(storage, v.id, &batch).unwrap();
