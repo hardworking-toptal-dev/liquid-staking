@@ -1,4 +1,6 @@
-use cosmwasm_std::{Coin, CosmosMsg, StakingMsg};
+use cosmos_sdk_proto::cosmos::staking::v1beta1::{MsgBeginRedelegate, MsgDelegate};
+use cosmos_sdk_proto::cosmos::{base::v1beta1::Coin as SdkCoin, staking::v1beta1::MsgUndelegate};
+use cosmwasm_std::{Coin, CosmosMsg, StakingMsg, StdResult};
 
 #[derive(Clone)]
 #[cfg_attr(test, derive(Debug, PartialEq))]
@@ -7,6 +9,7 @@ pub struct Delegation {
     pub amount: u128,
     pub denom: String,
 }
+// "/liquidstaking.staking.v1beta1.MsgDelegate"
 
 impl Delegation {
     pub fn new(validator: &str, amount: u128, denom: &str) -> Self {
@@ -17,11 +20,18 @@ impl Delegation {
         }
     }
 
-    pub fn to_cosmos_msg(&self) -> CosmosMsg {
-        CosmosMsg::Staking(StakingMsg::Delegate {
-            validator: self.validator.clone(),
-            amount: Coin::new(self.amount, self.denom.to_string()),
-        })
+    pub fn to_cosmos_msg(&self, delegator_address: String) -> StdResult<CosmosMsg> {
+        crate::helpers::proto_encode(
+            MsgDelegate {
+                amount: Some(SdkCoin {
+                    denom: self.denom.clone(),
+                    amount: self.amount.to_string(),
+                }),
+                delegator_address,
+                validator_address: self.validator.clone(),
+            },
+            "/liquidstaking.staking.v1beta1.MsgDelegate".to_string(),
+        )
     }
 }
 
@@ -41,11 +51,18 @@ impl Undelegation {
         }
     }
 
-    pub fn to_cosmos_msg(&self) -> CosmosMsg {
-        CosmosMsg::Staking(StakingMsg::Undelegate {
-            validator: self.validator.clone(),
-            amount: Coin::new(self.amount, self.denom.to_string()),
-        })
+    pub fn to_cosmos_msg(&self, delegator_address: String) -> StdResult<CosmosMsg> {
+        crate::helpers::proto_encode(
+            MsgUndelegate {
+                amount: Some(SdkCoin {
+                    denom: self.denom.clone(),
+                    amount: self.amount.to_string(),
+                }),
+                delegator_address,
+                validator_address: self.validator.clone(),
+            },
+            "/liquidstaking.staking.v1beta1.MsgUndelegate".to_string(),
+        )
     }
 }
 
@@ -67,11 +84,18 @@ impl Redelegation {
         }
     }
 
-    pub fn to_cosmos_msg(&self) -> CosmosMsg {
-        CosmosMsg::Staking(StakingMsg::Redelegate {
-            src_validator: self.src.clone(),
-            dst_validator: self.dst.clone(),
-            amount: Coin::new(self.amount, &self.denom),
-        })
+    pub fn to_cosmos_msg(&self, delegator_address: String) -> StdResult<CosmosMsg> {
+        crate::helpers::proto_encode(
+            MsgBeginRedelegate {
+                amount: Some(SdkCoin {
+                    denom: self.denom.clone(),
+                    amount: self.amount.to_string(),
+                }),
+                delegator_address,
+                validator_src_address: self.src.clone(),
+                validator_dst_address: self.dst.clone(),
+            },
+            "/liquidstaking.staking.v1beta1.MsgBeginRedelegate".to_string(),
+        )
     }
 }

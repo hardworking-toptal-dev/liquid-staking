@@ -6,6 +6,7 @@ use cosmwasm_std::{
 };
 use cw20::{Cw20ExecuteMsg, MinterResponse};
 use cw20_base::msg::InstantiateMsg as Cw20InstantiateMsg;
+use sha2::Digest;
 
 use crate::contract::{REPLY_INSTANTIATE_TOKEN, REPLY_REGISTER_RECEIVED_COINS};
 use pfc_steak::hub::{
@@ -156,11 +157,11 @@ pub fn bond(deps: DepsMut, env: Env, receiver: Addr, funds: Vec<Coin>) -> StdRes
     let usteak_to_mint = compute_mint_amount(usteak_supply, amount_to_bond, &delegations);
     state.prev_denom.save(
         deps.storage,
-        &get_denom_balance(&deps.querier, env.contract.address, denom.clone())?,
+        &get_denom_balance(&deps.querier, env.contract.address.clone(), denom.clone())?,
     )?;
 
     let delegate_submsg = SubMsg::reply_on_success(
-        new_delegation.to_cosmos_msg(),
+        new_delegation.to_cosmos_msg(env.contract.address.to_string())?,
         REPLY_REGISTER_RECEIVED_COINS,
     );
 
@@ -295,13 +296,13 @@ pub fn reinvest(deps: DepsMut, env: Env) -> StdResult<Response> {
             }
         };
         Ok(Response::new()
-            .add_message(new_delegation.to_cosmos_msg())
+            .add_message(new_delegation.to_cosmos_msg(env.contract.address.to_string())?)
             .add_messages(send_msgs)
             .add_event(event)
             .add_attribute("action", "steakhub/reinvest"))
     } else {
         Ok(Response::new()
-            .add_message(new_delegation.to_cosmos_msg())
+            .add_message(new_delegation.to_cosmos_msg(env.contract.address.to_string())?)
             .add_event(event)
             .add_attribute("action", "steakhub/reinvest"))
     }
@@ -466,13 +467,18 @@ pub fn submit_batch(deps: DepsMut, env: Env) -> StdResult<Response> {
     )?;
     state.prev_denom.save(
         deps.storage,
-        &get_denom_balance(&deps.querier, env.contract.address, denom)?,
+        &get_denom_balance(&deps.querier, env.contract.address.clone(), denom)?,
     )?;
 
     let undelegate_submsgs = new_undelegations
         .iter()
-        .map(|d| SubMsg::reply_on_success(d.to_cosmos_msg(), REPLY_REGISTER_RECEIVED_COINS))
-        .collect::<Vec<_>>();
+        .map(|d| {
+            Ok(SubMsg::reply_on_success(
+                d.to_cosmos_msg(env.contract.address.to_string())?,
+                REPLY_REGISTER_RECEIVED_COINS,
+            ))
+        })
+        .collect::<StdResult<Vec<_>>>()?;
 
     let burn_msg = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: steak_token.into(),
@@ -670,13 +676,18 @@ pub fn rebalance(deps: DepsMut, env: Env, minimum: Uint128) -> StdResult<Respons
 
     state.prev_denom.save(
         deps.storage,
-        &get_denom_balance(&deps.querier, env.contract.address, denom)?,
+        &get_denom_balance(&deps.querier, env.contract.address.clone(), denom)?,
     )?;
 
     let redelegate_submsgs = new_redelegations
         .iter()
-        .map(|rd| SubMsg::reply_on_success(rd.to_cosmos_msg(), REPLY_REGISTER_RECEIVED_COINS))
-        .collect::<Vec<_>>();
+        .map(|rd| {
+            Ok(SubMsg::reply_on_success(
+                rd.to_cosmos_msg(env.contract.address.to_string())?,
+                REPLY_REGISTER_RECEIVED_COINS,
+            ))
+        })
+        .collect::<StdResult<Vec<_>>>()?;
 
     let amount: u128 = new_redelegations.iter().map(|rd| rd.amount).sum();
 
@@ -751,13 +762,18 @@ pub fn remove_validator(
 
     state.prev_denom.save(
         deps.storage,
-        &get_denom_balance(&deps.querier, env.contract.address, denom)?,
+        &get_denom_balance(&deps.querier, env.contract.address.clone(), denom)?,
     )?;
 
     let redelegate_submsgs = new_redelegations
         .iter()
-        .map(|d| SubMsg::reply_on_success(d.to_cosmos_msg(), REPLY_REGISTER_RECEIVED_COINS))
-        .collect::<Vec<_>>();
+        .map(|d| {
+            Ok(SubMsg::reply_on_success(
+                d.to_cosmos_msg(env.contract.address.to_string())?,
+                REPLY_REGISTER_RECEIVED_COINS,
+            ))
+        })
+        .collect::<StdResult<Vec<_>>>()?;
 
     let event = Event::new("steak/validator_removed").add_attribute("validator", validator);
 

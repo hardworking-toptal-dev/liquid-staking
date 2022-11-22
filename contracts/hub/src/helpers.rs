@@ -1,8 +1,8 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    Addr, BalanceResponse, BankQuery, Coin, QuerierWrapper, QueryRequest, Reply, StdError,
-    StdResult, SubMsgResponse, Uint128,
+    Addr, BalanceResponse, BankQuery, Coin, CosmosMsg, QuerierWrapper, QueryRequest, Reply,
+    StdError, StdResult, SubMsgResponse, Uint128,
 };
 use cw20::{Cw20QueryMsg, TokenInfoResponse};
 
@@ -113,4 +113,19 @@ pub fn get_denom_balance(
         denom,
     }))?;
     Ok(balance.amount.amount)
+}
+
+// encode a protobuf into a cosmos message
+// Inspired by https://github.com/alice-ltd/smart-contracts/blob/master/contracts/alice_terra_token/src/execute.rs#L73-L76
+pub(crate) fn proto_encode<M: prost::Message>(msg: M, type_url: String) -> StdResult<CosmosMsg> {
+    let mut bytes = Vec::new();
+    prost::Message::encode(&msg, &mut bytes).expect("Message encoding must be infallible");
+    Ok(cosmwasm_std::CosmosMsg::<cosmwasm_std::Empty>::Stargate {
+        type_url,
+        value: cosmwasm_std::Binary(bytes),
+    })
+    // let mut msg_buf: Vec<u8> = vec![];
+    // msg.encode(&mut msg_buf)
+    //     .map_err(|_e| ContractError::Std(StdError::generic_err("failed to compile proto")))?;
+    // Ok(msg_buf)
 }

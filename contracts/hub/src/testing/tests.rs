@@ -269,12 +269,12 @@ fn proper_instantiation() {
 #[test]
 fn bonding() {
     let mut deps = setup_test();
-
+    let env = mock_env();
     // Bond when no delegation has been made
     // In this case, the full deposit simply goes to the first validator
     let res = execute(
         deps.as_mut(),
-        mock_env(),
+        env.clone(),
         mock_info("user_1", &[Coin::new(1000000, "uxyz")]),
         ExecuteMsg::Bond { receiver: None },
     )
@@ -284,7 +284,9 @@ fn bonding() {
     assert_eq!(
         res.messages[0],
         SubMsg::reply_on_success(
-            Delegation::new("alice", 1000000, "uxyz").to_cosmos_msg(),
+            Delegation::new("alice", 1000000, "uxyz")
+                .to_cosmos_msg(env.contract.address.to_string())
+                .unwrap(),
             REPLY_REGISTER_RECEIVED_COINS
         )
     );
@@ -330,7 +332,9 @@ fn bonding() {
     assert_eq!(
         res.messages[0],
         SubMsg::reply_on_success(
-            Delegation::new("charlie", 12345, "uxyz").to_cosmos_msg(),
+            Delegation::new("charlie", 12345, "uxyz")
+                .to_cosmos_msg(env.contract.address.to_string())
+                .unwrap(),
             REPLY_REGISTER_RECEIVED_COINS
         )
     );
@@ -505,11 +509,11 @@ fn reinvesting() {
             ],
         )
         .unwrap();
-
+    let env = mock_env();
     // Bob has the smallest amount of delegations, so all proceeds go to him
     let res = execute(
         deps.as_mut(),
-        mock_env(),
+        env.clone(),
         mock_info(MOCK_CONTRACT_ADDR, &[]),
         ExecuteMsg::Callback(CallbackMsg::Reinvest {}),
     )
@@ -520,7 +524,9 @@ fn reinvesting() {
         res.messages[0],
         SubMsg {
             id: 0,
-            msg: Delegation::new("bob", 234 - 23, "uxyz").to_cosmos_msg(),
+            msg: Delegation::new("bob", 234 - 23, "uxyz")
+                .to_cosmos_msg(env.contract.address.to_string())
+                .unwrap(),
             gas_limit: None,
             reply_on: ReplyOn::Never
         }
@@ -554,7 +560,7 @@ fn reinvesting() {
 fn reinvesting_fee_split() {
     let mut deps = setup_test_fee_split();
     let state = State::default();
-
+    let env = mock_env();
     deps.querier.set_staking_delegations(&[
         Delegation::new("alice", 333334, "uxyz"),
         Delegation::new("bob", 333333, "uxyz"),
@@ -585,7 +591,7 @@ fn reinvesting_fee_split() {
     // Bob has the smallest amount of delegations, so all proceeds go to him
     let res = execute(
         deps.as_mut(),
-        mock_env(),
+        env.clone(),
         mock_info(MOCK_CONTRACT_ADDR, &[]),
         ExecuteMsg::Callback(CallbackMsg::Reinvest {}),
     )
@@ -596,7 +602,9 @@ fn reinvesting_fee_split() {
         res.messages[0],
         SubMsg {
             id: 0,
-            msg: Delegation::new("bob", 234 - 23, "uxyz").to_cosmos_msg(),
+            msg: Delegation::new("bob", 234 - 23, "uxyz")
+                .to_cosmos_msg(env.contract.address.to_string())
+                .unwrap(),
             gas_limit: None,
             reply_on: ReplyOn::Never
         }
@@ -808,9 +816,10 @@ fn submitting_batch() {
     // Alice:   345,782 - (314,049 + 1) = 31,732
     // Bob:     345,782 - (314,049 + 0) = 31,733
     // Charlie: 345,781 - (314,049 + 0) = 31,732
+    let env_at_ts = mock_env_at_timestamp(269201);
     let res = execute(
         deps.as_mut(),
-        mock_env_at_timestamp(269201),
+        env_at_ts.clone(),
         mock_info(MOCK_CONTRACT_ADDR, &[]),
         ExecuteMsg::SubmitBatch {},
     )
@@ -820,21 +829,27 @@ fn submitting_batch() {
     assert_eq!(
         res.messages[0],
         SubMsg::reply_on_success(
-            Undelegation::new("alice", 31732, "uxyz").to_cosmos_msg(),
+            Undelegation::new("alice", 31732, "uxyz")
+                .to_cosmos_msg(env_at_ts.contract.address.to_string())
+                .unwrap(),
             REPLY_REGISTER_RECEIVED_COINS
         )
     );
     assert_eq!(
         res.messages[1],
         SubMsg::reply_on_success(
-            Undelegation::new("bob", 31733, "uxyz").to_cosmos_msg(),
+            Undelegation::new("bob", 31733, "uxyz")
+                .to_cosmos_msg(env_at_ts.contract.address.to_string())
+                .unwrap(),
             REPLY_REGISTER_RECEIVED_COINS
         )
     );
     assert_eq!(
         res.messages[2],
         SubMsg::reply_on_success(
-            Undelegation::new("charlie", 31732, "uxyz").to_cosmos_msg(),
+            Undelegation::new("charlie", 31732, "uxyz")
+                .to_cosmos_msg(env_at_ts.contract.address.to_string())
+                .unwrap(),
             REPLY_REGISTER_RECEIVED_COINS
         )
     );
@@ -1380,9 +1395,10 @@ fn removing_validator() {
     // Remainder: 0
     // Alice:   512500 + 0 - 341667 = 170833
     // Bob:     512500 + 0 - 341667 = 170833
+    let env = mock_env();
     let res = execute(
         deps.as_mut(),
-        mock_env(),
+        env.clone(),
         mock_info("larry", &[]),
         ExecuteMsg::RemoveValidator {
             validator: "charlie".to_string(),
@@ -1394,14 +1410,18 @@ fn removing_validator() {
     assert_eq!(
         res.messages[0],
         SubMsg::reply_on_success(
-            Redelegation::new("charlie", "alice", 170833, "uxyz").to_cosmos_msg(),
+            Redelegation::new("charlie", "alice", 170833, "uxyz")
+                .to_cosmos_msg(env.contract.address.to_string())
+                .unwrap(),
             REPLY_REGISTER_RECEIVED_COINS
         ),
     );
     assert_eq!(
         res.messages[1],
         SubMsg::reply_on_success(
-            Redelegation::new("charlie", "bob", 170833, "uxyz").to_cosmos_msg(),
+            Redelegation::new("charlie", "bob", 170833, "uxyz")
+                .to_cosmos_msg(env.contract.address.to_string())
+                .unwrap(),
             REPLY_REGISTER_RECEIVED_COINS
         ),
     );
