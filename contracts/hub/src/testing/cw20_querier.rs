@@ -34,11 +34,9 @@ impl Cw20Querier {
                 })
                 .into())
                 .into()
-            },
+            }
 
-            Cw20QueryMsg::Balance {
-                address,
-            } => {
+            Cw20QueryMsg::Balance { address } => {
                 let contract_balances = self
                     .balances
                     .get(contract_addr)
@@ -51,7 +49,10 @@ impl Cw20Querier {
                 let balance = contract_balances
                     .get(address)
                     .ok_or_else(|| SystemError::InvalidRequest {
-                        error: format!("[mock] balance not set for cw20 `{}` and user `{}`", contract_addr, address),
+                        error: format!(
+                            "[mock] balance not set for cw20 `{}` and user `{}`",
+                            contract_addr, address
+                        ),
                         request: Default::default(),
                     })
                     .unwrap();
@@ -61,7 +62,7 @@ impl Cw20Querier {
                 })
                 .into())
                 .into()
-            },
+            }
 
             other_query => err_unsupported_query(other_query),
         }

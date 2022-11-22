@@ -1,9 +1,9 @@
 use cosmos_sdk_proto::cosmos::staking::v1beta1::{MsgBeginRedelegate, MsgDelegate};
 use cosmos_sdk_proto::cosmos::{base::v1beta1::Coin as SdkCoin, staking::v1beta1::MsgUndelegate};
-use cosmwasm_std::{Coin, CosmosMsg, StakingMsg, StdResult};
+use cosmwasm_std::{CosmosMsg, StdResult};
 
 #[derive(Clone)]
-#[cfg_attr(test, derive(Debug, PartialEq))]
+#[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub struct Delegation {
     pub validator: String,
     pub amount: u128,
@@ -35,7 +35,7 @@ impl Delegation {
     }
 }
 
-#[cfg_attr(test, derive(Debug, PartialEq))]
+#[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub struct Undelegation {
     pub validator: String,
     pub amount: u128,
@@ -66,7 +66,7 @@ impl Undelegation {
     }
 }
 
-#[cfg_attr(test, derive(Debug, PartialEq))]
+#[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub struct Redelegation {
     pub src: String,
     pub dst: String,

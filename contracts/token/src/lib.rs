@@ -30,7 +30,9 @@ pub fn execute(
     // For `burn_from`, we simply disable it
     match msg {
         ExecuteMsg::Burn { .. } => assert_minter(deps.storage, &info.sender)?,
-        ExecuteMsg::BurnFrom { .. } => return Err(StdError::generic_err("`burn_from` command is disabled").into()),
+        ExecuteMsg::BurnFrom { .. } => {
+            return Err(StdError::generic_err("`burn_from` command is disabled").into())
+        }
         _ => (),
     }
 
@@ -87,7 +89,7 @@ mod tests {
             .save(
                 deps.as_mut().storage,
                 &Addr::unchecked("steak_hub"),
-                &Uint128::new(100)
+                &Uint128::new(100),
             )
             .unwrap();
 
@@ -95,7 +97,7 @@ mod tests {
             .save(
                 deps.as_mut().storage,
                 &Addr::unchecked("alice"),
-                &Uint128::new(100)
+                &Uint128::new(100),
             )
             .unwrap();
 
@@ -115,7 +117,10 @@ mod tests {
                 amount: Uint128::new(100),
             },
         );
-        assert_eq!(res, Err(StdError::generic_err("only minter can execute token burn").into()));
+        assert_eq!(
+            res,
+            Err(StdError::generic_err("only minter can execute token burn").into())
+        );
 
         // Steak Hub can burn
         let res = execute(
@@ -129,7 +134,9 @@ mod tests {
         assert!(res.is_ok());
 
         // Steak Hub's token balance should have been reduced
-        let balance = BALANCES.load(deps.as_ref().storage, &Addr::unchecked("steak_hub")).unwrap();
+        let balance = BALANCES
+            .load(deps.as_ref().storage, &Addr::unchecked("steak_hub"))
+            .unwrap();
         assert_eq!(balance, Uint128::zero());
 
         // Total supply should have been reduced
@@ -151,6 +158,9 @@ mod tests {
                 amount: Uint128::new(100),
             },
         );
-        assert_eq!(res, Err(StdError::generic_err("`burn_from` command is disabled").into()));
+        assert_eq!(
+            res,
+            Err(StdError::generic_err("`burn_from` command is disabled").into())
+        );
     }
 }

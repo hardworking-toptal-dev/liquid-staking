@@ -27,13 +27,17 @@ impl FromStr for Coins {
 
 impl Coins {
     pub fn add(&mut self, coin_to_add: &Coin) -> StdResult<()> {
-        match self.0.iter_mut().find(|coin| coin.denom == coin_to_add.denom) {
+        match self
+            .0
+            .iter_mut()
+            .find(|coin| coin.denom == coin_to_add.denom)
+        {
             Some(coin) => {
                 coin.amount = coin.amount.checked_add(coin_to_add.amount)?;
-            },
+            }
             None => {
                 self.0.push(coin_to_add.clone());
-            },
+            }
         }
         Ok(())
     }

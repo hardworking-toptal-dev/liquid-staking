@@ -6,7 +6,6 @@ use cosmwasm_std::{
 };
 use cw20::{Cw20ExecuteMsg, MinterResponse};
 use cw20_base::msg::InstantiateMsg as Cw20InstantiateMsg;
-use sha2::Digest;
 
 use crate::contract::{REPLY_INSTANTIATE_TOKEN, REPLY_REGISTER_RECEIVED_COINS};
 use pfc_steak::hub::{

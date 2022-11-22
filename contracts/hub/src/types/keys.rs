@@ -11,11 +11,7 @@ pub struct BooleanKey {
 impl BooleanKey {
     pub fn new(val: bool) -> Self {
         BooleanKey {
-            wrapped: if val {
-                vec![1]
-            } else {
-                vec![0]
-            },
+            wrapped: if val { vec![1] } else { vec![0] },
             data: PhantomData,
         }
     }
