@@ -1,14 +1,21 @@
 [workspace]
 members = ["contracts/*", "packages/*"]
+resolver = "2"
 
-[profile.release.package.pfc-steak]
-opt-level = 3
-debug = false
-debug-assertions = false
-codegen-units = 1
-incremental = false
+# [profile.release.package.pfc-steak]
+# opt-level = 3
+# debug = false
+# debug-assertions = false
+# codegen-units = 1
+# incremental = false
 
 [profile.release]
+codegen-units = 1
+opt-level = 3
+debug = false
 rpath = false
 lto = true
+debug-assertions = false
+panic = 'abort'
+incremental = false
 overflow-checks = true

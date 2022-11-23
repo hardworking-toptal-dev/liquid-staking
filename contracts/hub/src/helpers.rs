@@ -119,7 +119,8 @@ pub fn get_denom_balance(
 // Inspired by https://github.com/alice-ltd/smart-contracts/blob/master/contracts/alice_terra_token/src/execute.rs#L73-L76
 pub(crate) fn proto_encode<M: prost::Message>(msg: M, type_url: String) -> StdResult<CosmosMsg> {
     let mut bytes = Vec::new();
-    prost::Message::encode(&msg, &mut bytes).expect("Message encoding must be infallible");
+    prost::Message::encode(&msg, &mut bytes)
+        .map_err(|e| StdError::generic_err("Message encoding must be infallible"))?;
     Ok(cosmwasm_std::CosmosMsg::<cosmwasm_std::Empty>::Stargate {
         type_url,
         value: cosmwasm_std::Binary(bytes),
