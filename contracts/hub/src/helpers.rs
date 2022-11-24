@@ -120,7 +120,7 @@ pub fn get_denom_balance(
 pub(crate) fn proto_encode<M: prost::Message>(msg: M, type_url: String) -> StdResult<CosmosMsg> {
     let mut bytes = Vec::new();
     prost::Message::encode(&msg, &mut bytes)
-        .map_err(|e| StdError::generic_err("Message encoding must be infallible"))?;
+        .map_err(|_e| StdError::generic_err("Message encoding must be infallible"))?;
     Ok(cosmwasm_std::CosmosMsg::<cosmwasm_std::Empty>::Stargate {
         type_url,
         value: cosmwasm_std::Binary(bytes),
