@@ -24,7 +24,7 @@ pfc-fee-split = "0.1.1"
 subtle-encoding = { version = "0.5", features = ["bech32-preview"] }
 sha2 = "0.10.6"
 prost = "0.11.2"
-cosmos-sdk-proto = { version = "0.15.0", default-features = false }
+cosmos-sdk-proto = { version = "0.12.3", default-features = false }
 
 #[dev-dependencies]
 #serde = { version = "1.0.103", default-features = false, features = ["derive"] }
