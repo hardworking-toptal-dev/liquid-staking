@@ -80,7 +80,7 @@ version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "24ca04d3795c18023c221a2143b29de9c70668ecb22d17783bc02ee780c6c404"
 dependencies = [
- "prost 0.10.4",
+ "prost",
  "prost-types",
  "tendermint-proto",
 ]
@@ -598,7 +598,7 @@ dependencies = [
  "cw20-base",
  "pfc-fee-split",
  "pfc-steak",
- "prost 0.11.2",
+ "prost",
  "serde",
  "sha2 0.10.6",
  "subtle-encoding",
@@ -639,17 +639,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "71adf41db68aa0daaefc69bb30bcd68ded9b9abaad5d1fbb6304c4fb390e083e"
 dependencies = [
  "bytes",
- "prost-derive 0.10.1",
-]
-
-[[package]]
-name = "prost"
-version = "0.11.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0841812012b2d4a6145fae9a6af1534873c32aa67fff26bd09f8fa42c83f95a"
-dependencies = [
- "bytes",
- "prost-derive 0.11.2",
+ "prost-derive",
 ]
 
 [[package]]
@@ -666,26 +656,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "prost-derive"
-version = "0.11.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "164ae68b6587001ca506d3bf7f1000bfa248d0e1217b618108fba4ec1d0cc306"
-dependencies = [
- "anyhow",
- "itertools",
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "prost-types"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2d0a014229361011dc8e69c8a1ec6c2e8d0f2af7c91e3ea3f5b2170298461e68"
 dependencies = [
  "bytes",
- "prost 0.10.4",
+ "prost",
 ]
 
 [[package]]
@@ -922,7 +899,7 @@ dependencies = [
  "flex-error",
  "num-derive",
  "num-traits",
- "prost 0.10.4",
+ "prost",
  "prost-types",
  "serde",
  "serde_bytes",
