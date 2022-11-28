@@ -1,0 +1,18 @@
+[package]
+name = "dpow-hash"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+subtle-encoding = { version = "0.5", features = ["bech32-preview", "alloc", "base64"] }
+sha2 = "0.10.6"
+rand = "0.8.5"
+ripemd160 = "0.9.1"
+anyhow = "1.0.66"
+thiserror = "1.0.37"
+
+[features]
+default = []
+mining = []
