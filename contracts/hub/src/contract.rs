@@ -192,7 +192,7 @@ pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> StdResult<Response>
     let contract_version = match get_contract_version(deps.storage) {
         Ok(version) => version,
         Err(_) => ContractVersion {
-            contract: "steak-hub".to_string(),
+            contract: "pfc-steak-hub".to_string(),
             version: "0".to_string(),
         },
     };
