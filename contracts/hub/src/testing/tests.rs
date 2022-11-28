@@ -22,7 +22,7 @@ use crate::math::{
     compute_redelegations_for_rebalancing, compute_redelegations_for_removal, compute_undelegations,
 };
 use crate::state::State;
-use crate::types::{Coins, Delegation, Redelegation, Undelegation};
+use crate::types::{Coins, Delegation, Redelegation, RewardWithdrawal, Undelegation};
 
 use super::custom_querier::CustomQuerier;
 use super::helpers::{mock_dependencies, mock_env_at_timestamp, query_helper};
@@ -388,9 +388,10 @@ fn harvesting() {
     ]);
     deps.querier.set_cw20_total_supply("steak_token", 1000000);
 
+    let mut harvest_env = mock_env();
     let res = execute(
         deps.as_mut(),
-        mock_env(),
+        harvest_env.clone(),
         mock_info("worker", &[]),
         ExecuteMsg::Harvest {},
     )
@@ -400,27 +401,33 @@ fn harvesting() {
     assert_eq!(
         res.messages[0],
         SubMsg::reply_on_success(
-            CosmosMsg::Distribution(DistributionMsg::WithdrawDelegatorReward {
+            RewardWithdrawal {
                 validator: "alice".to_string(),
-            }),
+            }
+            .to_cosmos_msg(harvest_env.contract.address.to_string())
+            .unwrap(),
             REPLY_REGISTER_RECEIVED_COINS,
         )
     );
     assert_eq!(
         res.messages[1],
         SubMsg::reply_on_success(
-            CosmosMsg::Distribution(DistributionMsg::WithdrawDelegatorReward {
+            RewardWithdrawal {
                 validator: "bob".to_string(),
-            }),
+            }
+            .to_cosmos_msg(harvest_env.contract.address.to_string())
+            .unwrap(),
             REPLY_REGISTER_RECEIVED_COINS,
         )
     );
     assert_eq!(
         res.messages[2],
         SubMsg::reply_on_success(
-            CosmosMsg::Distribution(DistributionMsg::WithdrawDelegatorReward {
+            RewardWithdrawal {
                 validator: "charlie".to_string(),
-            }),
+            }
+            .to_cosmos_msg(harvest_env.contract.address.to_string())
+            .unwrap(),
             REPLY_REGISTER_RECEIVED_COINS,
         )
     );
@@ -1188,12 +1195,7 @@ fn withdrawing_unbonded() {
         .previous_batches
         .load(deps.as_ref().storage, 2u64)
         .unwrap_err();
-    assert_eq!(
-        err,
-        StdError::NotFound {
-            kind: "pfc_steak::hub::Batch".to_string()
-        }
-    );
+    assert_eq!(err, StdError::generic_err("pfc_steak::hub::Batch"));
 
     // User 1's unbond requests in batches 1 and 2 should have been deleted
     let err1 = state
@@ -1205,19 +1207,8 @@ fn withdrawing_unbonded() {
         .load(deps.as_ref().storage, (1u64, &Addr::unchecked("user_1")))
         .unwrap_err();
 
-    assert_eq!(
-        err1,
-        StdError::NotFound {
-            kind: "pfc_steak::hub::UnbondRequest".to_string()
-        }
-    );
-    assert_eq!(
-        err2,
-        StdError::NotFound {
-            kind: "pfc_steak::hub::UnbondRequest".to_string()
-        }
-    );
-
+    assert_eq!(err1, StdError::not_found("pfc_steak::hub::UnbondRequest"));
+    assert_eq!(err2, StdError::not_found("pfc_steak::hub::UnbondRequest"));
     // User 3 attempt to withdraw; also specifying a receiver
     let res = execute(
         deps.as_mut(),
@@ -1248,24 +1239,14 @@ fn withdrawing_unbonded() {
         .previous_batches
         .load(deps.as_ref().storage, 1u64)
         .unwrap_err();
-    assert_eq!(
-        err,
-        StdError::NotFound {
-            kind: "pfc_steak::hub::Batch".to_string()
-        }
-    );
+    assert_eq!(err, StdError::generic_err("pfc_steak::hub::Batch"));
 
     let err = state
         .unbond_requests
         .load(deps.as_ref().storage, (1u64, &Addr::unchecked("user_3")))
         .unwrap_err();
 
-    assert_eq!(
-        err,
-        StdError::NotFound {
-            kind: "pfc_steak::hub::UnbondRequest".to_string()
-        }
-    );
+    assert_eq!(err, StdError::not_found("pfc_steak::hub::UnbondRequest"));
 }
 
 #[test]

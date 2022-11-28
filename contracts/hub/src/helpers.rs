@@ -125,8 +125,4 @@ pub(crate) fn proto_encode<M: prost::Message>(msg: M, type_url: String) -> StdRe
         type_url,
         value: cosmwasm_std::Binary(bytes),
     })
-    // let mut msg_buf: Vec<u8> = vec![];
-    // msg.encode(&mut msg_buf)
-    //     .map_err(|_e| ContractError::Std(StdError::generic_err("failed to compile proto")))?;
-    // Ok(msg_buf)
 }

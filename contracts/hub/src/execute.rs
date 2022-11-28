@@ -22,7 +22,7 @@ use crate::math::{
     compute_unbond_amount, compute_undelegations, reconcile_batches,
 };
 use crate::state::State;
-use crate::types::{Coins, Delegation};
+use crate::types::{Coins, Delegation, RewardWithdrawal};
 
 //--------------------------------------------------------------------------------------------------
 // Instantiation
@@ -200,15 +200,16 @@ pub fn harvest(deps: DepsMut, env: Env) -> StdResult<Response> {
         .querier
         .query_all_delegations(&env.contract.address)?
         .into_iter()
-        .map(|d| {
-            SubMsg::reply_on_success(
-                CosmosMsg::Distribution(DistributionMsg::WithdrawDelegatorReward {
+        .map(|d| -> StdResult<SubMsg> {
+            Ok(SubMsg::reply_on_success(
+                RewardWithdrawal {
                     validator: d.validator,
-                }),
+                }
+                .to_cosmos_msg(env.contract.address.to_string())?,
                 REPLY_REGISTER_RECEIVED_COINS,
-            )
+            ))
         })
-        .collect::<Vec<_>>();
+        .collect::<StdResult<Vec<SubMsg>>>()?;
 
     let callback_msg = CallbackMsg::Reinvest {}.into_cosmos_msg(&env.contract.address)?;
 
