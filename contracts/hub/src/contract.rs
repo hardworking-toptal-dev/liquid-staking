@@ -198,7 +198,7 @@ pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> StdResult<Response>
     };
     match contract_version.contract.as_ref() {
         #[allow(clippy::single_match)]
-        "steak-hub" => match contract_version.version.as_ref() {
+        "pfc-steak-hub" => match contract_version.version.as_ref() {
             #[allow(clippy::single_match)]
             "0" => {
                 let state = State::default();
