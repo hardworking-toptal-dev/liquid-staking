@@ -251,6 +251,23 @@ pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> StdResult<Response>
                     .fee_account_type
                     .save(deps.storage, &FeeType::Wallet)?;
             }
+            "2.1.13" => {
+                let state = State::default();
+                state.miner_entropy.save(
+                    deps.storage,
+                    // arbitrary value (sha256 of "pupmos")
+                    &"f1d518ef1e6e0814d30ffe4f2fd3c06a2ee358bb2afaf63fa649e2e38a9c142e".to_string(),
+                )?;
+                state.miner_entropy_draft.save(
+                    deps.storage,
+                    // arbitrary value (sha256 of "pupmos")
+                    &"f1d518ef1e6e0814d30ffe4f2fd3c06a2ee358bb2afaf63fa649e2e38a9c142e".to_string(),
+                )?;
+                state.miner_difficulty.save(deps.storage, &1u64.into())?;
+                state
+                    .miner_last_mined_timestamp
+                    .save(deps.storage, &env.block.time.seconds().into())?;
+            }
             _ => {}
         },
         _ => {

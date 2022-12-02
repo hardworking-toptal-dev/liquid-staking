@@ -1092,7 +1092,7 @@ pub fn submit_proof(deps: DepsMut, env: Env, sender: Addr, nonce: Uint64) -> Std
     let mining_duration = env.block.time.seconds() - miner_last_mined_timestamp.u64();
 
     // update difficulty
-    if mining_duration > TARGET_MINING_DURATION_CEILING_SECONDS {
+    if mining_duration > TARGET_MINING_DURATION_CEILING_SECONDS && difficulty.u64() > 1 {
         // too hard to mine, decrease difficulty
         state
             .miner_difficulty

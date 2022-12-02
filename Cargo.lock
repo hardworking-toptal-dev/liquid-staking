@@ -607,7 +607,7 @@ dependencies = [
 
 [[package]]
 name = "pfc-steak-hub"
-version = "2.1.12"
+version = "2.1.13"
 dependencies = [
  "cosmos-sdk-proto",
  "cosmwasm-schema",
