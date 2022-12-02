@@ -1,8 +1,8 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    to_binary, Addr, BankMsg, Coin, CosmosMsg, Decimal, DepsMut, Env, Event,
-    Order, Response, StdError, StdResult, SubMsg, SubMsgResponse, Uint128, Uint64, WasmMsg,
+    to_binary, Addr, BankMsg, Coin, CosmosMsg, Decimal, DepsMut, Env, Event, Order, Response,
+    StdError, StdResult, SubMsg, SubMsgResponse, Uint128, Uint64, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, MinterResponse};
 use cw20_base::msg::InstantiateMsg as Cw20InstantiateMsg;
