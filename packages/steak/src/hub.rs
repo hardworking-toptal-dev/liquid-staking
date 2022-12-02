@@ -149,7 +149,7 @@ pub enum QueryMsg {
         start_after: Option<u64>,
         limit: Option<u32>,
     },
-    /// Load entropy for the current epoch. Response: `MinerParamsResponse`
+    /// Load entropy and difficulty for the current epoch. Response: `MinerParamsResponse`
     MinerParams {},
 }
 
