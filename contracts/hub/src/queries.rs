@@ -152,7 +152,7 @@ pub fn miner_params(deps: Deps) -> StdResult<MinerParamsResponse> {
     let state = State::default();
     let entropy = state.miner_entropy.load(deps.storage)?;
     let difficulty = state.miner_difficulty.load(deps.storage)?;
-    let entropy = entropy.to_string();
+    let entropy = entropy;
     Ok(MinerParamsResponse {
         entropy,
         difficulty,

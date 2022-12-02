@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    to_binary, Addr, BankMsg, Coin, CosmosMsg, Decimal, DepsMut, DistributionMsg, Env, Event,
+    to_binary, Addr, BankMsg, Coin, CosmosMsg, Decimal, DepsMut, Env, Event,
     Order, Response, StdError, StdResult, SubMsg, SubMsgResponse, Uint128, Uint64, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, MinterResponse};
@@ -984,7 +984,7 @@ pub fn update_fee(deps: DepsMut, sender: Addr, new_fee: Decimal) -> StdResult<Re
 pub fn update_entropy(
     deps: DepsMut,
     _env: Env,
-    sender: Addr,
+    _sender: Addr,
     entropy: String,
 ) -> StdResult<Response> {
     let state = State::default();
@@ -1036,7 +1036,7 @@ pub fn submit_proof(deps: DepsMut, env: Env, sender: Addr, nonce: Uint64) -> Std
     // validate difficulty
     let mut difficulty_string = String::new();
     for _ in 0..difficulty.u64() {
-        difficulty_string.push_str("0");
+        difficulty_string.push('0');
     }
 
     if !entropy_hash.starts_with(&difficulty_string) {

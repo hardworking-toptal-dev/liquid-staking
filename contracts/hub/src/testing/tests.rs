@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use cosmwasm_std::testing::{mock_env, mock_info, MockApi, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    to_binary, Addr, BankMsg, Coin, CosmosMsg, Decimal, DistributionMsg, Event, Order, OwnedDeps,
+    to_binary, Addr, BankMsg, Coin, CosmosMsg, Decimal, Event, Order, OwnedDeps,
     Reply, ReplyOn, StdError, SubMsg, SubMsgResponse, Uint128, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, MinterResponse};
@@ -388,7 +388,7 @@ fn harvesting() {
     ]);
     deps.querier.set_cw20_total_supply("steak_token", 1000000);
 
-    let mut harvest_env = mock_env();
+    let harvest_env = mock_env();
     let res = execute(
         deps.as_mut(),
         harvest_env.clone(),
