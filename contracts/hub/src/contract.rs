@@ -67,12 +67,11 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         ExecuteMsg::RemoveValidatorEx { validator } => {
             execute::remove_validator_ex(deps, env, info.sender, validator)
         }
-
         ExecuteMsg::TransferOwnership { new_owner } => {
             execute::transfer_ownership(deps, info.sender, new_owner)
         }
         ExecuteMsg::AcceptOwnership {} => execute::accept_ownership(deps, info.sender),
-        ExecuteMsg::Harvest {} => execute::harvest(deps, env),
+        ExecuteMsg::Harvest {} => execute::harvest(deps, env, info.sender),
         ExecuteMsg::Rebalance { minimum } => execute::rebalance(deps, env, minimum),
         ExecuteMsg::Reconcile {} => execute::reconcile(deps, env),
         ExecuteMsg::SubmitBatch {} => execute::submit_batch(deps, env),
@@ -91,6 +90,10 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         ExecuteMsg::SetUnbondPeriod { unbond_period } => {
             execute::set_unbond_period(deps, env, info.sender, unbond_period)
         }
+        ExecuteMsg::UpdateEntropy { entropy } => {
+            execute::update_entropy(deps, env, info.sender, entropy)
+        }
+        ExecuteMsg::SubmitProof { nonce } => execute::submit_proof(deps, env, info.sender, nonce),
     }
 }
 
@@ -184,6 +187,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             start_after,
             limit,
         )?),
+        QueryMsg::MinerParams {} => to_binary(&queries::miner_params(deps)?),
     }
 }
 

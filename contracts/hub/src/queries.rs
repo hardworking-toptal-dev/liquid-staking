@@ -2,8 +2,8 @@ use cosmwasm_std::{Addr, Decimal, Deps, Env, Order, StdResult, Uint128};
 use cw_storage_plus::{Bound, CwIntKey};
 
 use pfc_steak::hub::{
-    Batch, ConfigResponse, PendingBatch, StateResponse, UnbondRequestsByBatchResponseItem,
-    UnbondRequestsByUserResponseItem,
+    Batch, ConfigResponse, MinerParamsResponse, PendingBatch, StateResponse,
+    UnbondRequestsByBatchResponseItem, UnbondRequestsByUserResponseItem,
 };
 
 use crate::helpers::{query_cw20_total_supply, query_delegations};
@@ -145,4 +145,16 @@ pub fn unbond_requests_by_user(
             Ok(v.into())
         })
         .collect()
+}
+
+// query function for entropy
+pub fn miner_params(deps: Deps) -> StdResult<MinerParamsResponse> {
+    let state = State::default();
+    let entropy = state.miner_entropy.load(deps.storage)?;
+    let difficulty = state.miner_difficulty.load(deps.storage)?;
+    let entropy = entropy.to_string();
+    Ok(MinerParamsResponse {
+        entropy,
+        difficulty,
+    })
 }

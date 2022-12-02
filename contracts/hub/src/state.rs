@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, Coin, Decimal, StdError, StdResult, Storage, Uint128};
+use cosmwasm_std::{Addr, Coin, Decimal, StdError, StdResult, Storage, Uint128, Uint64};
 use cw_storage_plus::{Index, IndexList, IndexedMap, Item, MultiIndex};
 
 use pfc_steak::hub::{Batch, FeeType, PendingBatch, UnbondRequest};
@@ -42,6 +42,14 @@ pub(crate) struct State<'a> {
     pub validators_active: Item<'a, Vec<String>>,
     /// coins in 'denom' held before reinvest was called.
     pub prev_denom: Item<'a, Uint128>,
+    // entropy string for miners to target for block hash
+    pub miner_entropy: Item<'a, String>,
+    // next entropy string for miners to target for block hash
+    pub miner_entropy_draft: Item<'a, String>,
+    // mining difficulty for miners to target for block hash
+    pub miner_difficulty: Item<'a, Uint64>,
+    // last mined height
+    pub miner_last_mined_timestamp: Item<'a, Uint64>,
 }
 
 impl Default for State<'static> {
@@ -78,6 +86,10 @@ impl Default for State<'static> {
             validators_active: Item::new("validators_active"),
             prev_denom: Item::new("prev_denom"),
             fee_account_type: Item::new("fee_account_type"),
+            miner_entropy: Item::new("miner_entropy"),
+            miner_entropy_draft: Item::new("miner_entropy_draft"),
+            miner_difficulty: Item::new("miner_difficulty"),
+            miner_last_mined_timestamp: Item::new("miner_last_mined_timestamp"),
         }
     }
 }

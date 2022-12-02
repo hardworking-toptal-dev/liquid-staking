@@ -1,4 +1,6 @@
-use cosmwasm_std::{to_binary, Addr, Coin, CosmosMsg, Decimal, Empty, StdResult, Uint128, WasmMsg};
+use cosmwasm_std::{
+    to_binary, Addr, Coin, CosmosMsg, Decimal, Empty, StdResult, Uint128, Uint64, WasmMsg,
+};
 use cw20::Cw20ReceiveMsg;
 use cw20_base::msg::InstantiateMarketingInfo as Cw20InstantiateMarketingInfo;
 use schemars::JsonSchema;
@@ -84,6 +86,10 @@ pub enum ExecuteMsg {
     },
     /// Update fee collection amount
     UpdateFee { new_fee: Decimal },
+    /// Update entropy
+    UpdateEntropy { entropy: String },
+    /// Submit mined proof
+    SubmitProof { nonce: Uint64 },
     /// Callbacks; can only be invoked by the contract itself
     Callback(CallbackMsg),
 }
@@ -143,6 +149,8 @@ pub enum QueryMsg {
         start_after: Option<u64>,
         limit: Option<u32>,
     },
+    /// Load entropy for the current epoch. Response: `MinerParamsResponse`
+    MinerParams {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
@@ -169,6 +177,15 @@ pub struct ConfigResponse {
     pub max_fee_rate: Decimal,
     /// Initial set of validators who will receive the delegations
     pub validators: Vec<String>,
+}
+
+// entropy response
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
+pub struct MinerParamsResponse {
+    // entropy to hash
+    pub entropy: String,
+    // mining difficulty
+    pub difficulty: Uint64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]

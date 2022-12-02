@@ -2,10 +2,12 @@ use std::str::FromStr;
 
 use cosmwasm_std::{
     to_binary, Addr, BankMsg, Coin, CosmosMsg, Decimal, DepsMut, DistributionMsg, Env, Event,
-    Order, Response, StdError, StdResult, SubMsg, SubMsgResponse, Uint128, WasmMsg,
+    Order, Response, StdError, StdResult, SubMsg, SubMsgResponse, Uint128, Uint64, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, MinterResponse};
 use cw20_base::msg::InstantiateMsg as Cw20InstantiateMsg;
+use sha2::{Digest, Sha256};
+use subtle_encoding::hex;
 
 use crate::contract::{REPLY_INSTANTIATE_TOKEN, REPLY_REGISTER_RECEIVED_COINS};
 use pfc_steak::hub::{
@@ -23,6 +25,11 @@ use crate::math::{
 };
 use crate::state::State;
 use crate::types::{Coins, Delegation, RewardWithdrawal};
+
+// minimum amount of time it should take to mine a block (1 minutes)
+pub const TARGET_MINING_DURATION_FLOOR_SECONDS: u64 = 60u64;
+// maximum amount of time it should take to mine a block (20 minutes)
+pub const TARGET_MINING_DURATION_CEILING_SECONDS: u64 = 1200u64;
 
 //--------------------------------------------------------------------------------------------------
 // Instantiation
@@ -188,7 +195,12 @@ pub fn bond(deps: DepsMut, env: Env, receiver: Addr, funds: Vec<Coin>) -> StdRes
         .add_attribute("action", "steakhub/bond"))
 }
 
-pub fn harvest(deps: DepsMut, env: Env) -> StdResult<Response> {
+pub fn harvest(deps: DepsMut, env: Env, sender: Addr) -> StdResult<Response> {
+    if sender != env.contract.address {
+        return Err(StdError::generic_err(
+            "only the contract itself can harvest rewards for DPOW",
+        ));
+    }
     let state = State::default();
     let denom = state.denom.load(deps.storage)?;
     state.prev_denom.save(
@@ -915,6 +927,21 @@ pub fn accept_ownership(deps: DepsMut, sender: Addr) -> StdResult<Response> {
         .add_attribute("action", "steakhub/transfer_ownership"))
 }
 
+fn transfer_fee_account_internal(
+    deps: DepsMut,
+    fee_account_type: String,
+    new_fee_account: String,
+) -> StdResult<()> {
+    let state = State::default();
+    let fee_type = FeeType::from_str(&fee_account_type)
+        .map_err(|_| StdError::generic_err("Invalid Fee type: Wallet or FeeSplit only"))?;
+    state.fee_account_type.save(deps.storage, &fee_type)?;
+    state
+        .fee_account
+        .save(deps.storage, &deps.api.addr_validate(&new_fee_account)?)?;
+    Ok(())
+}
+
 pub fn transfer_fee_account(
     deps: DepsMut,
     sender: Addr,
@@ -924,14 +951,8 @@ pub fn transfer_fee_account(
     let state = State::default();
 
     state.assert_owner(deps.storage, &sender)?;
-    let fee_type = FeeType::from_str(&fee_account_type)
-        .map_err(|_| StdError::generic_err("Invalid Fee type: Wallet or FeeSplit only"))?;
 
-    state.fee_account_type.save(deps.storage, &fee_type)?;
-
-    state
-        .fee_account
-        .save(deps.storage, &deps.api.addr_validate(&new_fee_account)?)?;
+    transfer_fee_account_internal(deps, fee_account_type, new_fee_account)?;
 
     Ok(Response::new().add_attribute("action", "steakhub/transfer_fee_account"))
 }
@@ -957,4 +978,133 @@ pub fn update_fee(deps: DepsMut, sender: Addr, new_fee: Decimal) -> StdResult<Re
     state.fee_rate.save(deps.storage, &new_fee)?;
 
     Ok(Response::new().add_attribute("action", "steakhub/update_fee"))
+}
+
+// update entropy execute function
+pub fn update_entropy(
+    deps: DepsMut,
+    _env: Env,
+    sender: Addr,
+    entropy: String,
+) -> StdResult<Response> {
+    let state = State::default();
+
+    let next_entropy =
+        state
+            .miner_entropy_draft
+            .update(deps.storage, |entropy_draft| -> StdResult<String> {
+                // use sha2 to hash the entropy
+                let mut hasher = Sha256::new();
+                hasher.update(entropy_draft);
+                hasher.update(entropy);
+                let result = hasher.finalize();
+                // convert the hash to a hex string
+                let entropy_hash = hex::encode(result);
+                // convert bytes to string
+                let entropy_hash = String::from_utf8(entropy_hash)?;
+                Ok(entropy_hash)
+            })?;
+
+    Ok(Response::new()
+        .add_attribute("action", "steakhub/update_entropy")
+        .add_attribute("miner_entropy_draft", next_entropy))
+}
+
+// submit proof execute function
+// * validates block hash of entropy + sender bech32 + sender nonce meets the required mining difficulty
+// * sets miner_entropy to equal a hash of the block hash and miner_entropy_draft
+// * sets fee address to sender,
+// * executes Rebalance {} cosmwasm message on itself
+pub fn submit_proof(deps: DepsMut, env: Env, sender: Addr, nonce: Uint64) -> StdResult<Response> {
+    let state = State::default();
+
+    let miner_entropy = state.miner_entropy.load(deps.storage)?;
+    let miner_entropy_draft = state.miner_entropy_draft.load(deps.storage)?;
+    let fee_account_type = state.fee_account_type.load(deps.storage)?;
+    let difficulty = state.miner_difficulty.load(deps.storage)?;
+    let miner_last_mined_timestamp = state.miner_last_mined_timestamp.load(deps.storage)?;
+
+    // validate block hash
+    let mut hasher = Sha256::new();
+    hasher.update(&miner_entropy);
+    hasher.update(sender.as_str());
+    hasher.update(nonce.to_le_bytes());
+    let result = hasher.finalize();
+    let entropy_hash = hex::encode(result);
+    let entropy_hash = String::from_utf8(entropy_hash)?;
+
+    // validate difficulty
+    let mut difficulty_string = String::new();
+    for _ in 0..difficulty.u64() {
+        difficulty_string.push_str("0");
+    }
+
+    if !entropy_hash.starts_with(&difficulty_string) {
+        return Err(StdError::generic_err(
+            "block hash does not meet difficulty requirement",
+        ));
+    }
+
+    // compute hash of miner_entropy_draft and entropy_hash
+    let mut hasher = Sha256::new();
+    hasher.update(&miner_entropy_draft);
+    hasher.update(&entropy_hash);
+    let result = hasher.finalize();
+    let miner_entropy = hex::encode(result);
+    let miner_entropy = String::from_utf8(miner_entropy)?;
+
+    // set miner entropy
+    state.miner_entropy.save(deps.storage, &miner_entropy)?;
+
+    // set miner entropy draft to the entropy hash
+    state
+        .miner_entropy_draft
+        .save(deps.storage, &entropy_hash)?;
+
+    // set last mined timestamp
+    state
+        .miner_last_mined_timestamp
+        .save(deps.storage, &env.block.time.seconds().into())?;
+
+    // update mining difficulty based on the mining duration ceiling and floor
+    let mining_duration = env.block.time.seconds() - miner_last_mined_timestamp.u64();
+
+    // update difficulty
+    if mining_duration > TARGET_MINING_DURATION_CEILING_SECONDS {
+        // too hard to mine, decrease difficulty
+        state
+            .miner_difficulty
+            .update(deps.storage, |difficulty| -> StdResult<Uint64> {
+                Ok(difficulty.checked_sub(1u64.into())?)
+            })?;
+    } else if mining_duration < TARGET_MINING_DURATION_FLOOR_SECONDS {
+        // too easy to mine, increase difficulty
+        state
+            .miner_difficulty
+            .update(deps.storage, |difficulty| -> StdResult<Uint64> {
+                Ok(difficulty.checked_add(1u64.into())?)
+            })?;
+    }
+
+    // set fee account
+    if fee_account_type != FeeType::Wallet {
+        state
+            .fee_account_type
+            .save(deps.storage, &FeeType::Wallet)?;
+    }
+    // make the miner the fee recipient
+    state.fee_account.save(deps.storage, &sender)?;
+
+    // execute rebalance
+    let harvest_msg = ExecuteMsg::Harvest {};
+    let harvest_msg = to_binary(&harvest_msg)?;
+    let harvest_cosmos_msg = CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: env.contract.address.to_string(),
+        msg: harvest_msg,
+        funds: vec![],
+    });
+
+    Ok(Response::new()
+        .add_message(harvest_cosmos_msg)
+        .add_attribute("action", "steakhub/submit_proof"))
 }
