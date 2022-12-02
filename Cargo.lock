@@ -87,9 +87,9 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-crypto"
-version = "1.1.5"
+version = "1.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "28376836c7677e1ea6d6656a754582e88b91e544ce22fae42956d5fe5549a958"
+checksum = "532d2ba11b7157e3b67114389925568af29ce3e452b582d6bdfe751cb2dadfb1"
 dependencies = [
  "digest 0.10.5",
  "ed25519-zebra",
@@ -100,9 +100,9 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-derive"
-version = "1.1.5"
+version = "1.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8eb69f4f7a8a4bce68c8fbd3646238fede1e77056e4ea31c5b6bfc37b709eec3"
+checksum = "8568b289cc366981319ab39edd85d666456456f7c126433ef065ebe5257f27b2"
 dependencies = [
  "syn",
 ]
@@ -133,9 +133,9 @@ dependencies = [
 
 [[package]]
 name = "cosmwasm-std"
-version = "1.1.5"
+version = "1.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "46bf9157d060abbc55152aeadcace799d03dc630575daa66604079a1206cb060"
+checksum = "2d1ceebd520a10167e35080e4f55f6b0284bb8ea364dec0f22197da96acd9e64"
 dependencies = [
  "base64",
  "cosmwasm-crypto",
@@ -531,6 +531,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
+name = "hex-literal"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7ebdb29d2ea9ed0083cd8cece49bbd968021bd99b0849edb4a9a7ee0fdf6a4e0"
+
+[[package]]
 name = "hmac"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -639,13 +645,14 @@ dependencies = [
  "cw2 0.13.4",
  "cw20 0.13.4",
  "cw20-base",
+ "hex",
+ "hex-literal",
  "pfc-fee-split",
  "pfc-steak",
  "prost 0.10.4",
  "schemars",
  "serde",
  "sha2 0.10.6",
- "subtle-encoding",
 ]
 
 [[package]]

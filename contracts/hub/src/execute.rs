@@ -7,7 +7,6 @@ use cosmwasm_std::{
 use cw20::{Cw20ExecuteMsg, MinterResponse};
 use cw20_base::msg::InstantiateMsg as Cw20InstantiateMsg;
 use sha2::{Digest, Sha256};
-use subtle_encoding::hex;
 
 use crate::contract::{REPLY_INSTANTIATE_TOKEN, REPLY_REGISTER_RECEIVED_COINS};
 use pfc_steak::hub::{
@@ -1001,13 +1000,55 @@ pub fn update_entropy(
                 // convert the hash to a hex string
                 let entropy_hash = hex::encode(result);
                 // convert bytes to string
-                let entropy_hash = String::from_utf8(entropy_hash)?;
+                let entropy_hash = String::from_utf8(entropy_hash.as_bytes().to_vec())?;
                 Ok(entropy_hash)
             })?;
 
     Ok(Response::new()
         .add_attribute("action", "steakhub/update_entropy")
         .add_attribute("miner_entropy_draft", next_entropy))
+}
+
+pub fn compute_miner_proof(
+    miner_entropy: &str,
+    miner_address: &str,
+    nonce: Uint64,
+    difficulty: Uint64,
+) -> StdResult<String> {
+    // validate block hash
+    let mut hasher = Sha256::new();
+    hasher.update(&miner_entropy);
+    hasher.update(miner_address);
+    hasher.update(nonce.to_le_bytes());
+    let result = hasher.finalize();
+    let entropy_hash = hex::encode(result);
+    let entropy_hash = String::from_utf8(entropy_hash.as_bytes().to_vec())?;
+
+    // validate difficulty
+    let mut difficulty_string = String::new();
+    for _ in 0..difficulty.u64() {
+        difficulty_string.push('0');
+    }
+
+    if !entropy_hash.starts_with(&difficulty_string) {
+        return Err(StdError::generic_err(
+            "block hash does not meet difficulty requirement",
+        ));
+    }
+    Ok(entropy_hash)
+}
+// unit test for compute_miner_proof
+#[test]
+fn test_compute_miner_proof() {
+    let miner_entropy = "abcdefg".to_string();
+    let miner_address = "cosmos123".to_string();
+    let nonce = Uint64::from(3825297897467829464u64);
+    let difficulty = Uint64::from(1u64);
+    let result = compute_miner_proof(&miner_entropy, &miner_address, nonce, difficulty);
+    assert_eq!(
+        result.unwrap(),
+        "0956b8dd2b60206c9b7ee78a6b0c92faf9c8ba981927effbeea99fbbf4a5a9cd"
+    );
 }
 
 // submit proof execute function
@@ -1024,26 +1065,7 @@ pub fn submit_proof(deps: DepsMut, env: Env, sender: Addr, nonce: Uint64) -> Std
     let difficulty = state.miner_difficulty.load(deps.storage)?;
     let miner_last_mined_timestamp = state.miner_last_mined_timestamp.load(deps.storage)?;
 
-    // validate block hash
-    let mut hasher = Sha256::new();
-    hasher.update(&miner_entropy);
-    hasher.update(sender.as_str());
-    hasher.update(nonce.to_le_bytes());
-    let result = hasher.finalize();
-    let entropy_hash = hex::encode(result);
-    let entropy_hash = String::from_utf8(entropy_hash)?;
-
-    // validate difficulty
-    let mut difficulty_string = String::new();
-    for _ in 0..difficulty.u64() {
-        difficulty_string.push('0');
-    }
-
-    if !entropy_hash.starts_with(&difficulty_string) {
-        return Err(StdError::generic_err(
-            "block hash does not meet difficulty requirement",
-        ));
-    }
+    let entropy_hash = compute_miner_proof(&miner_entropy, &sender.to_string(), nonce, difficulty)?;
 
     // compute hash of miner_entropy_draft and entropy_hash
     let mut hasher = Sha256::new();
@@ -1051,7 +1073,7 @@ pub fn submit_proof(deps: DepsMut, env: Env, sender: Addr, nonce: Uint64) -> Std
     hasher.update(&entropy_hash);
     let result = hasher.finalize();
     let miner_entropy = hex::encode(result);
-    let miner_entropy = String::from_utf8(miner_entropy)?;
+    let miner_entropy = String::from_utf8(miner_entropy.as_bytes().to_vec())?;
 
     // set miner entropy
     state.miner_entropy.save(deps.storage, &miner_entropy)?;
