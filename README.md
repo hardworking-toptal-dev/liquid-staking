@@ -2,15 +2,12 @@ delegated proof of work
 
 proofs
 
-a proof is a nonce for the next sha256 hash of a virtual block header within the liquid staking contract. 
-the virtual block header is a concatenation of the following fields: 
-* the block height
-* the timestamp
-* the total amount of native token staked
-* the previous nonce
-* the previous header hash
+a proof is a nonce for the next sha256 hash meeting the difficulty requirements set by the liquid staking contract. a proof is a hash of the following: 
+* entropy
+* miner's bech32 address 
+* nonce
 
-miners will search for the next nonce by appending random bytes to the header and hashing it until they find a hash that, when bech32 encoded, starts with a certain keyword (e.g. "j0e"). 
+miners will search for the next nonce by iteratively until they find a hash that starts with a number of zeros defined by difficulty.
 
 delegations 
 
