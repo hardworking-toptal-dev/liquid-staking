@@ -25,8 +25,8 @@ use crate::math::{
 use crate::state::State;
 use crate::types::{Coins, Delegation, RewardWithdrawal};
 
-// minimum amount of time it should take to mine a block (1 minutes)
-pub const TARGET_MINING_DURATION_FLOOR_SECONDS: u64 = 60u64;
+// minimum amount of time it should take to mine a block (20 seconds)
+pub const TARGET_MINING_DURATION_FLOOR_SECONDS: u64 = 20u64;
 // maximum amount of time it should take to mine a block (20 minutes)
 pub const TARGET_MINING_DURATION_CEILING_SECONDS: u64 = 1200u64;
 

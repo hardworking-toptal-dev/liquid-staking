@@ -268,6 +268,10 @@ pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> StdResult<Response>
                     .miner_last_mined_timestamp
                     .save(deps.storage, &env.block.time.seconds().into())?;
             }
+            "2.1.14" => {
+                let state = State::default();
+                state.miner_difficulty.save(deps.storage, &1u64.into())?;
+            }
             _ => {}
         },
         _ => {
