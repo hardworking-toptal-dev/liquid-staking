@@ -9,25 +9,44 @@ repository = "https://github.com/st4k3h0us3/steak-contracts"
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[profile.release]
+opt-level = 3
+debug = false
+rpath = false
+lto = true
+debug-assertions = false
+codegen-units = 1
+panic = 'abort'
+incremental = false
+overflow-checks = true
+
 [features]
-backtraces = ["cosmwasm-std/backtraces"]
+# Add feature "cranelift" to default if you need 32 bit or ARM support
+default = ["cranelift"]
+# Use cranelift backend instead of singlepass. This is required for development on 32 bit or ARM machines.
+cranelift = ["cosmwasm-vm/cranelift"]
+# for quicker tests, cargo test --lib
+# for more explicit tests, cargo test --features=backtraces
+backtraces = ["cosmwasm-std/backtraces", "cosmwasm-vm/backtraces"]
 
 [dependencies]
-cosmwasm-std = { version = "1.1.5", features = ["staking", "stargate"] }
-cw2="0.13"
-cw20 = "0.13"
-cw20-base = { version = "0.13", features = ["library"] }
-cw-storage-plus = "0.13"
+cosmwasm-std = { workspace = true, features = ["staking", "stargate", "iterator"] }
+cw2 = { workspace = true }
+cw20 = { workspace = true }
+cw20-base = { workspace = true, features = ["library"] }
+cw-storage-plus = { workspace = true }
 pfc-steak = { path = "../../packages/steak" }
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
-pfc-fee-split = "0.1.1"
+pfc-fee-split = { version = "0.1.1" }
 sha2 = "0.10.6"
-prost = "0.10"
-cosmos-sdk-proto = { version = "0.12.3", default-features = false }
-cosmwasm-schema = "1.1.3"
+prost = {version = "0.11.0", default-features = false, features = ["prost-derive"]}
+prost-types = {version = "0.11.1", default-features = false}
+cosmos-sdk-proto = { version = "0.16.0", default-features = false }
+cosmwasm-schema = { workspace = true }
 schemars = "0.8.10"
 hex = "0.4.3"
 
 [dev-dependencies]
 #serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 hex-literal = "0.3.1"
+cosmwasm-vm = { version = "1.1.2", default-features = false, features = ["iterator"] }

@@ -1195,7 +1195,7 @@ fn withdrawing_unbonded() {
         .previous_batches
         .load(deps.as_ref().storage, 2u64)
         .unwrap_err();
-    assert_eq!(err, StdError::generic_err("pfc_steak::hub::Batch"));
+    assert_eq!(err, StdError::not_found("pfc_steak::hub::Batch"));
 
     // User 1's unbond requests in batches 1 and 2 should have been deleted
     let err1 = state
@@ -1867,8 +1867,11 @@ fn computing_redelegations_for_rebalancing() {
         compute_redelegations_for_rebalancing(
             active_validators,
             &current_delegations,
-            Uint128::from(10_u64)
-        ),
+            Uint128::from(10_u64),
+            // mock the same mining power on every validator
+            |_| Ok(40471_u128.into())
+        )
+        .unwrap(),
         expected,
     );
 
@@ -1888,8 +1891,11 @@ fn computing_redelegations_for_rebalancing() {
         compute_redelegations_for_rebalancing(
             partially_active.clone(),
             &current_delegations,
-            Uint128::from(10_u64)
-        ),
+            Uint128::from(10_u64),
+            // mock the same mining power on every validator
+            |_| Ok(25788_u128.into())
+        )
+        .unwrap(),
         partially_expected,
     );
 
@@ -1901,8 +1907,11 @@ fn computing_redelegations_for_rebalancing() {
         compute_redelegations_for_rebalancing(
             partially_active,
             &current_delegations,
-            Uint128::from(15_000_u64)
-        ),
+            Uint128::from(15_000_u64),
+            // mock the same mining power on every validator
+            |d| Ok(25788u128.into())
+        )
+        .unwrap(),
         partially_expected_minimums,
     );
 }

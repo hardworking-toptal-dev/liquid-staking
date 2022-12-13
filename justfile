@@ -15,3 +15,7 @@ legacy-optimize:
     --mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
     --platform linux/amd64 \
     cosmwasm/rust-optimizer:0.12.5
+
+# needed or tests to compile
+test-hub:
+	cargo test --features=cranelift --package=pfc-steak-hub --verbose

@@ -1,6 +1,6 @@
 use std::{cmp, cmp::Ordering};
 
-use cosmwasm_std::Uint128;
+use cosmwasm_std::{StdResult, Uint128};
 
 use pfc_steak::hub::Batch;
 
@@ -142,15 +142,17 @@ pub(crate) fn compute_redelegations_for_removal(
 /// this sentence makes sense)
 ///
 /// This algorithm does not guarantee the minimal number of moves, but is the best I can some up with...
+///
+/// Rewrite to compute moves off-chain and verify them on-chain?
 pub(crate) fn compute_redelegations_for_rebalancing(
     validators_active: Vec<String>,
     current_delegations: &[Delegation],
     min_difference: Uint128,
-) -> Vec<Redelegation> {
+    load_target_delegation: impl Fn(&Delegation) -> StdResult<Uint128>,
+) -> StdResult<Vec<Redelegation>> {
     let native_staked: u128 = current_delegations.iter().map(|d| d.amount).sum();
     let validator_count = validators_active.len() as u128;
 
-    let native_per_validator = native_staked / validator_count;
     let remainder = native_staked % validator_count;
 
     // If a validator's current delegated amount is greater than the target amount, native will be
@@ -161,7 +163,7 @@ pub(crate) fn compute_redelegations_for_rebalancing(
     let mut dst_delegations: Vec<Delegation> = vec![];
     for (i, d) in current_delegations.iter().enumerate() {
         let remainder_for_validator: u128 = u128::from((i + 1) as u128 <= remainder) as u128;
-        let native_for_validator = native_per_validator + remainder_for_validator;
+        let native_for_validator = load_target_delegation(d)?.u128() + remainder_for_validator;
         // eprintln!("{} amount ={} native={} min={}", d.validator, d.amount, native_for_validator, min_difference);
         match d.amount.cmp(&native_for_validator) {
             Ordering::Greater => {
@@ -214,7 +216,7 @@ pub(crate) fn compute_redelegations_for_rebalancing(
     }
     // eprintln!("new redelegations ={:?}", new_redelegations);
 
-    new_redelegations
+    Ok(new_redelegations)
 }
 
 //--------------------------------------------------------------------------------------------------

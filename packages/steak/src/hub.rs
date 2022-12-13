@@ -89,7 +89,7 @@ pub enum ExecuteMsg {
     /// Update entropy
     UpdateEntropy { entropy: String },
     /// Submit mined proof
-    SubmitProof { nonce: Uint64 },
+    SubmitProof { nonce: Uint64, validator: String },
     /// Callbacks; can only be invoked by the contract itself
     Callback(CallbackMsg),
 }
@@ -151,6 +151,12 @@ pub enum QueryMsg {
     },
     /// Load entropy and difficulty for the current epoch. Response: `MinerParamsResponse`
     MinerParams {},
+    /// Validator Mining Powers
+    /// Response: `Vec<ValidatorMiningPower>`
+    ValidatorMiningPowers {
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
@@ -266,6 +272,14 @@ impl From<UnbondRequest> for UnbondRequestsByUserResponseItem {
             shares: s.shares,
         }
     }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
+pub struct ValidatorMiningPower {
+    /// Validator address
+    pub address: String,
+    /// Mining power
+    pub mining_power: Uint128,
 }
 
 pub type MigrateMsg = Empty;

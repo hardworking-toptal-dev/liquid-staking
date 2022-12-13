@@ -93,7 +93,9 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         ExecuteMsg::UpdateEntropy { entropy } => {
             execute::update_entropy(deps, env, info.sender, entropy)
         }
-        ExecuteMsg::SubmitProof { nonce } => execute::submit_proof(deps, env, info.sender, nonce),
+        ExecuteMsg::SubmitProof { nonce, validator } => {
+            execute::submit_proof(deps, env, info.sender, nonce, validator)
+        }
     }
 }
 
@@ -188,6 +190,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             limit,
         )?),
         QueryMsg::MinerParams {} => to_binary(&queries::miner_params(deps)?),
+        QueryMsg::ValidatorMiningPowers { start_after, limit } => {
+            to_binary(&queries::validator_mining_powers(deps, start_after, limit)?)
+        }
     }
 }
 

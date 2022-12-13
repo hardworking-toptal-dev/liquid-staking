@@ -1,5 +1,5 @@
 use cosmwasm_std::{Addr, Coin, Decimal, StdError, StdResult, Storage, Uint128, Uint64};
-use cw_storage_plus::{Index, IndexList, IndexedMap, Item, MultiIndex};
+use cw_storage_plus::{Index, IndexList, IndexedMap, Item, Map, MultiIndex};
 
 use pfc_steak::hub::{Batch, FeeType, PendingBatch, UnbondRequest};
 
@@ -48,8 +48,14 @@ pub(crate) struct State<'a> {
     pub miner_entropy_draft: Item<'a, String>,
     // mining difficulty for miners to target for block hash
     pub miner_difficulty: Item<'a, Uint64>,
-    // last mined height
+    // last mined timestamp
     pub miner_last_mined_timestamp: Item<'a, Uint64>,
+    // last mined block height
+    pub miner_last_mined_block: Item<'a, Uint64>,
+    // mining power by validator (map of validator address to time weighted mining power)
+    pub validator_mining_powers: Map<'a, String, Uint128>,
+    // total mining power
+    pub total_mining_power: Item<'a, Uint128>,
 }
 
 impl Default for State<'static> {
@@ -90,6 +96,9 @@ impl Default for State<'static> {
             miner_entropy_draft: Item::new("miner_entropy_draft"),
             miner_difficulty: Item::new("miner_difficulty"),
             miner_last_mined_timestamp: Item::new("miner_last_mined_timestamp"),
+            miner_last_mined_block: Item::new("miner_last_mined_block"),
+            validator_mining_powers: Map::new("validator_mining_powers"),
+            total_mining_power: Item::new("total_mining_power"),
         }
     }
 }

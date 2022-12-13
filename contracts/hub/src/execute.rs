@@ -1,8 +1,9 @@
+use std::convert::TryInto;
 use std::str::FromStr;
 
 use cosmwasm_std::{
-    to_binary, Addr, BankMsg, Coin, CosmosMsg, Decimal, DepsMut, Env, Event, Order, Response,
-    StdError, StdResult, SubMsg, SubMsgResponse, Uint128, Uint64, WasmMsg,
+    to_binary, Addr, BankMsg, Coin, CosmosMsg, Decimal, Decimal256, DepsMut, Env, Event, Order,
+    Response, StdError, StdResult, SubMsg, SubMsgResponse, Uint128, Uint64, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, MinterResponse};
 use cw20_base::msg::InstantiateMsg as Cw20InstantiateMsg;
@@ -27,8 +28,8 @@ use crate::types::{Coins, Delegation, RewardWithdrawal};
 
 // minimum amount of time it should take to mine a block (20 seconds)
 pub const TARGET_MINING_DURATION_FLOOR_SECONDS: u64 = 20u64;
-// maximum amount of time it should take to mine a block (20 minutes)
-pub const TARGET_MINING_DURATION_CEILING_SECONDS: u64 = 1200u64;
+// maximum amount of time it should take to mine a block (5 minutes)
+pub const TARGET_MINING_DURATION_CEILING_SECONDS: u64 = 300u64;
 
 //--------------------------------------------------------------------------------------------------
 // Instantiation
@@ -230,6 +231,23 @@ pub fn harvest(deps: DepsMut, env: Env, sender: Addr) -> StdResult<Response> {
         .add_attribute("action", "steakhub/harvest"))
 }
 
+pub fn calculate_target_delegation_from_mining_power(
+    deps: &DepsMut,
+    validator_address: String,
+    validator_delegated_amount: Uint128,
+    total_delegated_amount: Uint128,
+    total_mining_power: Uint128,
+) -> StdResult<Uint128> {
+    let state = State::default();
+    let dpow_mining_power = state
+        .validator_mining_powers
+        .may_load(deps.storage, validator_address)?
+        .unwrap_or_default();
+    let expected_delegated_amount =
+        (dpow_mining_power * total_delegated_amount) / total_mining_power;
+    Ok(expected_delegated_amount)
+}
+
 /// NOTE:
 /// 1. When delegation Native denom here, we don't need to use a `SubMsg` to handle the received coins,
 /// because we have already withdrawn all claimable staking rewards previously in the same atomic
@@ -263,13 +281,31 @@ pub fn reinvest(deps: DepsMut, env: Env) -> StdResult<Response> {
             .ok_or_else(|| StdError::generic_err("no native amount available to be bonded"))?
             .amount;
     */
+    let total_mining_power = state.total_mining_power.load(deps.storage)?;
     let delegations = query_delegations(&deps.querier, &validators, &env.contract.address, &denom)?;
+    let total_bonded = delegations.iter().fold(0u128, |acc, d| acc + d.amount);
     let mut validator = &delegations[0].validator;
-    let mut amount = delegations[0].amount;
+    let target_delegation = calculate_target_delegation_from_mining_power(
+        &deps,
+        validator.to_string(),
+        delegations[0].amount.into(),
+        total_bonded.into(),
+        total_mining_power,
+    )?;
+    let mut diff = delegations[0].amount.abs_diff(target_delegation.u128());
     for d in &delegations[1..] {
-        if d.amount < amount {
+        let current_td = calculate_target_delegation_from_mining_power(
+            &deps,
+            validator.to_string(),
+            d.amount.into(),
+            total_bonded.into(),
+            total_mining_power,
+        )?;
+        let current_diff = d.amount.abs_diff(current_td.u128());
+        // if there is a bigger gap to fill with the current validator, use it
+        if diff < current_diff {
             validator = &d.validator;
-            amount = d.amount;
+            diff = current_diff;
         }
     }
     let fee_amount = if fee.is_zero() {
@@ -682,8 +718,20 @@ pub fn rebalance(deps: DepsMut, env: Env, minimum: Uint128) -> StdResult<Respons
 
     let delegations = query_delegations(&deps.querier, &validators, &env.contract.address, &denom)?;
 
+    let total_delegated_amount = delegations.iter().fold(0u128, |acc, d| acc + d.amount);
+
+    let total_mining_power = state.total_mining_power.load(deps.storage)?;
+
     let new_redelegations =
-        compute_redelegations_for_rebalancing(validators_active, &delegations, minimum);
+        compute_redelegations_for_rebalancing(validators_active, &delegations, minimum, |d| {
+            calculate_target_delegation_from_mining_power(
+                &deps,
+                d.validator.clone(),
+                d.amount.into(),
+                total_delegated_amount.into(),
+                total_mining_power,
+            )
+        })?;
 
     state.prev_denom.save(
         deps.storage,
@@ -1009,6 +1057,22 @@ pub fn update_entropy(
         .add_attribute("miner_entropy_draft", next_entropy))
 }
 
+pub fn create_difficulty_prefix(difficulty: Uint64) -> String {
+    // validate difficulty
+    let mut difficulty_string = String::new();
+    for _ in 0..difficulty.u64() {
+        difficulty_string.push('0');
+    }
+    difficulty_string
+}
+
+#[test]
+fn test_create_difficulty_prefix() {
+    let difficulty = Uint64::from(3u64);
+    let difficulty_string = create_difficulty_prefix(difficulty);
+    assert_eq!(difficulty_string, "000");
+}
+
 pub fn compute_miner_proof(
     miner_entropy: &str,
     miner_address: &str,
@@ -1024,11 +1088,7 @@ pub fn compute_miner_proof(
     let entropy_hash = hex::encode(result);
     let entropy_hash = String::from_utf8(entropy_hash.as_bytes().to_vec())?;
 
-    // validate difficulty
-    let mut difficulty_string = String::new();
-    for _ in 0..difficulty.u64() {
-        difficulty_string.push('0');
-    }
+    let difficulty_string = create_difficulty_prefix(difficulty);
 
     if !entropy_hash.starts_with(&difficulty_string) {
         return Err(StdError::generic_err(
@@ -1047,7 +1107,7 @@ fn test_compute_miner_proof() {
     let result = compute_miner_proof(&miner_entropy, &miner_address, nonce, difficulty);
     assert_eq!(
         result.unwrap(),
-        "0956b8dd2b60206c9b7ee78a6b0c92faf9c8ba981927effbeea99fbbf4a5a9cd"
+        "0956b8dd2b60206c9b7ee78a6b0c92faf9c8ba981927effbeea99fbbf4a5a9cd".to_uppercase()
     );
 }
 
@@ -1056,14 +1116,29 @@ fn test_compute_miner_proof() {
 // * sets miner_entropy to equal a hash of the block hash and miner_entropy_draft
 // * sets fee address to sender,
 // * executes Rebalance {} cosmwasm message on itself
-pub fn submit_proof(deps: DepsMut, env: Env, sender: Addr, nonce: Uint64) -> StdResult<Response> {
+pub fn submit_proof(
+    deps: DepsMut,
+    env: Env,
+    sender: Addr,
+    nonce: Uint64,
+    validator_address: String,
+) -> StdResult<Response> {
     let state = State::default();
-
+    let validator = deps
+        .querier
+        .query_validator(validator_address)?
+        .ok_or_else(|| StdError::generic_err("validator address not found in staking module"))?;
     let miner_entropy = state.miner_entropy.load(deps.storage)?;
     let miner_entropy_draft = state.miner_entropy_draft.load(deps.storage)?;
     let fee_account_type = state.fee_account_type.load(deps.storage)?;
     let difficulty = state.miner_difficulty.load(deps.storage)?;
     let miner_last_mined_timestamp = state.miner_last_mined_timestamp.load(deps.storage)?;
+    let miner_last_mined_block = state
+        .miner_last_mined_block
+        .load(deps.storage)
+        // defaults to previous block height
+        .or_else(|_| -> StdResult<Uint64> { Ok(Uint64::from(env.block.height - 1)) })?;
+    let total_mining_power = state.total_mining_power.load(deps.storage)?;
 
     let entropy_hash = compute_miner_proof(&miner_entropy, &sender.to_string(), nonce, difficulty)?;
 
@@ -1074,6 +1149,30 @@ pub fn submit_proof(deps: DepsMut, env: Env, sender: Addr, nonce: Uint64) -> Std
     let result = hasher.finalize();
     let miner_entropy = hex::encode(result);
     let miner_entropy = String::from_utf8(miner_entropy.as_bytes().to_vec())?;
+
+    // blocks since last mined block
+    let mining_duration_blocks = env.block.height - miner_last_mined_block.u64();
+
+    // update validator mining power
+    state.validator_mining_powers.update(
+        deps.storage,
+        validator.address,
+        |mining_power| -> StdResult<Uint128> {
+            Ok(mining_power
+                .unwrap_or_default()
+                .checked_add(Uint128::from(mining_duration_blocks))
+                .map_err(StdError::overflow)?)
+        },
+    )?;
+
+    // update total mining power
+    state
+        .total_mining_power
+        .update(deps.storage, |total_mining_power| -> StdResult<Uint128> {
+            Ok(total_mining_power
+                .checked_add(Uint128::from(mining_duration_blocks))
+                .map_err(StdError::overflow)?)
+        })?;
 
     // set miner entropy
     state.miner_entropy.save(deps.storage, &miner_entropy)?;
@@ -1087,6 +1186,11 @@ pub fn submit_proof(deps: DepsMut, env: Env, sender: Addr, nonce: Uint64) -> Std
     state
         .miner_last_mined_timestamp
         .save(deps.storage, &env.block.time.seconds().into())?;
+
+    // set last mined block
+    state
+        .miner_last_mined_block
+        .save(deps.storage, &env.block.height.into())?;
 
     // update mining difficulty based on the mining duration ceiling and floor
     let mining_duration = env.block.time.seconds() - miner_last_mined_timestamp.u64();
@@ -1117,7 +1221,7 @@ pub fn submit_proof(deps: DepsMut, env: Env, sender: Addr, nonce: Uint64) -> Std
     // make the miner the fee recipient
     state.fee_account.save(deps.storage, &sender)?;
 
-    // execute rebalance
+    // execute harvest
     let harvest_msg = ExecuteMsg::Harvest {};
     let harvest_msg = to_binary(&harvest_msg)?;
     let harvest_cosmos_msg = CosmosMsg::Wasm(WasmMsg::Execute {

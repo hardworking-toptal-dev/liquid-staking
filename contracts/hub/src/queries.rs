@@ -3,7 +3,7 @@ use cw_storage_plus::{Bound, CwIntKey};
 
 use pfc_steak::hub::{
     Batch, ConfigResponse, MinerParamsResponse, PendingBatch, StateResponse,
-    UnbondRequestsByBatchResponseItem, UnbondRequestsByUserResponseItem,
+    UnbondRequestsByBatchResponseItem, UnbondRequestsByUserResponseItem, ValidatorMiningPower,
 };
 
 use crate::helpers::{query_cw20_total_supply, query_delegations};
@@ -157,4 +157,28 @@ pub fn miner_params(deps: Deps) -> StdResult<MinerParamsResponse> {
         entropy,
         difficulty,
     })
+}
+
+pub fn validator_mining_powers(
+    deps: Deps,
+    start_after: Option<String>,
+    limit: Option<u32>,
+) -> StdResult<Vec<ValidatorMiningPower>> {
+    let state = State::default();
+
+    let start = start_after.map(Bound::exclusive);
+    let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
+
+    state
+        .validator_mining_powers
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|item| {
+            let (validator, power) = item?;
+            Ok(ValidatorMiningPower {
+                address: validator,
+                mining_power: power,
+            })
+        })
+        .collect()
 }
