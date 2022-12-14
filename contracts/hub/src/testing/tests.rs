@@ -22,7 +22,8 @@ use crate::contract::{
 };
 use crate::helpers::{parse_coin, parse_received_fund};
 use crate::math::{
-    compute_redelegations_for_rebalancing, compute_redelegations_for_removal, compute_undelegations,
+    compute_redelegations_for_rebalancing, compute_redelegations_for_removal,
+    compute_target_delegation_from_mining_power, compute_undelegations,
 };
 use crate::state::State;
 use crate::types::{Coins, Delegation, Redelegation, RewardWithdrawal, Undelegation};
@@ -631,7 +632,7 @@ fn reinvesting() {
 }
 
 #[test]
-fn reinvesting() {
+fn reinvesting_with_mining() {
     let mut deps = setup_test();
     let state = State::default();
 
@@ -2154,6 +2155,134 @@ fn computing_redelegations_for_rebalancing() {
         )
         .unwrap(),
         partially_expected_minimums,
+    );
+}
+
+#[test]
+fn computing_redelegations_for_rebalancing_with_mining() {
+    let current_delegations = vec![
+        Delegation::new("alice", 69420, "uxyz"),
+        Delegation::new("bob", 1234, "uxyz"),
+        Delegation::new("charlie", 88888, "uxyz"),
+        Delegation::new("dave", 40471, "uxyz"),
+        Delegation::new("evan", 2345, "uxyz"),
+    ];
+    let total_delegated_amount = current_delegations.iter().map(|d| d.amount).sum::<u128>();
+    let active_validators: Vec<String> = vec![
+        "alice".to_string(),
+        "bob".to_string(),
+        "charlie".to_string(),
+        "dave".to_string(),
+        "evan".to_string(),
+    ];
+    let mining_powers_by_validator = vec![
+        ("alice".to_string(), 1002_u128),
+        ("bob".to_string(), 3214_u128),
+        ("charlie".to_string(), 881_u128),
+        ("dave".to_string(), 5471_u128),
+        ("evan".to_string(), 9285_u128),
+    ];
+    let total_mining_power = mining_powers_by_validator
+        .iter()
+        .map(|(_, power)| power)
+        .sum::<u128>();
+
+    // total delegated amount: 69420 + 1234 + 88888 + 40471 + 2345 = 202358
+    // total mining power:         1002 + 3214 + 881 + 5471 + 9285 = 19853
+    // remainder = 3
+    //
+    // alice target:                          202358 * 1002 / 19853 = 10213 + remainder 1 = 10214
+    // bob target:                            202358 * 3214 / 19853 = 32759 + remainder 1 = 32760
+    // charlie target:                         202358 * 881 / 19853 = 8979  + remainder 1 = 8980
+    // dave target:                           202358 * 5471 / 19853 = 55764
+    // evan target:                           202358 * 9285 / 19853 = 94640
+    //
+    // sum of targets:         10213 + 32759 + 8979 + 55764 + 94640 = 202355
+    //
+    // alice delta:                                   69420 - 10214 = 59206
+    // bob delta:                                      1234 - 32760 = -31526
+    // charlie delta:                                  88888 - 8980 = 79908
+    // dave delta:                                    40471 - 55764 = -15293
+    // evan delta:                                     2345 - 94640 = -92295
+    //
+    // sum of deltas:      59206 + -31526 + 79908 + -15293 + -92295 = 0
+    //
+    // Redelegations:
+    // alice -> bob: 31526 (alice now has delta 27680)
+    // alice -> dave: 15293 (alice now has delta 12387)
+    // alice -> evan: 12387 (alice now has delta 0)
+    // charlie -> evan: 79908 (charlie now has delta 0)
+
+    let expected = vec![
+        Redelegation::new("alice", "bob", 31526, "uxyz"),
+        Redelegation::new("alice", "dave", 15293, "uxyz"),
+        Redelegation::new("alice", "evan", 12387, "uxyz"),
+        Redelegation::new("charlie", "evan", 79908, "uxyz"),
+    ];
+
+    assert_eq!(
+        compute_redelegations_for_rebalancing(
+            active_validators,
+            &current_delegations,
+            Uint128::from(10_u64),
+            // mock the same mining power on every validator
+            |d| compute_target_delegation_from_mining_power(
+                total_delegated_amount.into(),
+                mining_powers_by_validator
+                    .iter()
+                    .find(|(v, _)| v == &d.validator)
+                    .unwrap()
+                    .1
+                    .into(),
+                total_mining_power.into()
+            )
+            .into()
+        )
+        .unwrap(),
+        expected,
+        "round one mining weighted rebalancing"
+    );
+
+    let partially_active = vec![
+        "alice".to_string(),
+        "charlie".to_string(),
+        "dave".to_string(),
+        "evan".to_string(),
+    ];
+
+    let partially_expected = vec![
+        Redelegation::new("alice", "dave", 10118, "uxyz"),
+        Redelegation::new("alice", "evan", 8712, "uxyz"),
+        Redelegation::new("charlie", "evan", 38299, "uxyz"),
+    ];
+    assert_eq!(
+        compute_redelegations_for_rebalancing(
+            partially_active.clone(),
+            &current_delegations,
+            Uint128::from(10_u64),
+            // mock the same mining power on every validator
+            |_| Ok(50589_u128.into())
+        )
+        .unwrap(),
+        partially_expected,
+        "round 2 mining weighted rebalancing"
+    );
+
+    let partially_expected_minimums = vec![
+        Redelegation::new("alice", "evan", 18830, "uxyz"),
+        Redelegation::new("charlie", "evan", 29414, "uxyz"),
+    ];
+    assert_eq!(
+        compute_redelegations_for_rebalancing(
+            partially_active,
+            &current_delegations,
+            Uint128::from(15_000_u64),
+            // mock the same mining power on every validator
+            |d| Ok(50589u128.into())
+        )
+        .unwrap(),
+        partially_expected_minimums,
+        "round 2 mining weighted rebalancing with minimums"
     );
 }
 

@@ -23,7 +23,8 @@ use crate::helpers::{
 };
 use crate::math::{
     compute_mint_amount, compute_redelegations_for_rebalancing, compute_redelegations_for_removal,
-    compute_unbond_amount, compute_undelegations, reconcile_batches,
+    compute_target_delegation_from_mining_power, compute_unbond_amount, compute_undelegations,
+    reconcile_batches,
 };
 use crate::state::State;
 use crate::types::{Coins, Delegation, RewardWithdrawal};
@@ -233,70 +234,6 @@ pub fn harvest(deps: DepsMut, env: Env, sender: Addr) -> StdResult<Response> {
         .add_attribute("action", "steakhub/harvest"))
 }
 
-pub fn calculate_target_delegation_from_mining_power(
-    total_delegated_amount: Uint128,
-    validator_mining_power: Uint128,
-    total_mining_power: Uint128,
-) -> StdResult<Uint128> {
-    println!(
-        "total_delegated_amount: {}, validator_mining_power: {}, total_mining_power: {}",
-        total_delegated_amount, validator_mining_power, total_mining_power
-    );
-    if validator_mining_power > total_mining_power {
-        return Err(StdError::generic_err(
-            "validator mining power cannot be greater than total mining power",
-        ));
-    }
-    let expected_delegated_amount =
-        Decimal::from_ratio(validator_mining_power, total_mining_power).mul(total_delegated_amount);
-    Ok(expected_delegated_amount)
-}
-
-#[test]
-fn test_calculate_target_delegation_from_mining_power() {
-    let total_delegated_amount = Uint128::from(1_000_000u128);
-    let validator_mining_power = Uint128::from(100_000u128);
-    let total_mining_power = Uint128::from(1_000_000u128);
-    let expected_delegated_amount = Uint128::from(100_000u128);
-    assert_eq!(
-        calculate_target_delegation_from_mining_power(
-            total_delegated_amount,
-            validator_mining_power,
-            total_mining_power
-        )
-        .unwrap(),
-        expected_delegated_amount
-    );
-
-    let total_delegated_amount = Uint128::from(1_000_000u128);
-    let validator_mining_power = Uint128::from(5_000_000u128);
-    let total_mining_power = Uint128::from(15_000_000u128);
-    let expected_delegated_amount = Uint128::from(333_333u128);
-    assert_eq!(
-        calculate_target_delegation_from_mining_power(
-            total_delegated_amount,
-            validator_mining_power,
-            total_mining_power
-        )
-        .unwrap(),
-        expected_delegated_amount
-    );
-
-    let total_delegated_amount = Uint128::from(1_000_000u128);
-    let total_mining_power = Uint128::from(5_000_000u128);
-    let validator_mining_power = Uint128::from(1_000_000u128);
-    let expected_delegated_amount = Uint128::from(200_000u128);
-    assert_eq!(
-        calculate_target_delegation_from_mining_power(
-            total_delegated_amount,
-            validator_mining_power,
-            total_mining_power
-        )
-        .unwrap(),
-        expected_delegated_amount
-    );
-}
-
 /// NOTE:
 /// 1. When delegation Native denom here, we don't need to use a `SubMsg` to handle the received coins,
 /// because we have already withdrawn all claimable staking rewards previously in the same atomic
@@ -341,7 +278,7 @@ pub fn reinvest(deps: DepsMut, env: Env) -> StdResult<Response> {
         .validator_mining_powers
         .may_load(deps.storage, validator.to_string())?
         .unwrap_or_default();
-    let target_delegation = calculate_target_delegation_from_mining_power(
+    let target_delegation = compute_target_delegation_from_mining_power(
         total_bonded.into(),
         validator_mining_power,
         total_mining_power,
@@ -370,7 +307,7 @@ pub fn reinvest(deps: DepsMut, env: Env) -> StdResult<Response> {
             .validator_mining_powers
             .may_load(deps.storage, d.validator.to_string())?
             .unwrap_or_default();
-        let current_td = calculate_target_delegation_from_mining_power(
+        let current_td = compute_target_delegation_from_mining_power(
             total_bonded.into(),
             current_validator_mining_power,
             total_mining_power,
@@ -807,7 +744,7 @@ pub fn rebalance(deps: DepsMut, env: Env, minimum: Uint128) -> StdResult<Respons
 
     let new_redelegations =
         compute_redelegations_for_rebalancing(validators_active, &delegations, minimum, |d| {
-            calculate_target_delegation_from_mining_power(
+            compute_target_delegation_from_mining_power(
                 total_delegated_amount.into(),
                 state
                     .validator_mining_powers

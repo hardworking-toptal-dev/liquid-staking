@@ -1,6 +1,6 @@
-use std::{cmp, cmp::Ordering};
+use std::{cmp, cmp::Ordering, ops::Mul};
 
-use cosmwasm_std::{StdResult, Uint128};
+use cosmwasm_std::{Decimal, StdError, StdResult, Uint128};
 
 use pfc_steak::hub::Batch;
 
@@ -136,6 +136,70 @@ pub(crate) fn compute_redelegations_for_removal(
     }
 
     new_redelegations
+}
+
+pub fn compute_target_delegation_from_mining_power(
+    total_delegated_amount: Uint128,
+    validator_mining_power: Uint128,
+    total_mining_power: Uint128,
+) -> StdResult<Uint128> {
+    println!(
+        "total_delegated_amount: {}, validator_mining_power: {}, total_mining_power: {}",
+        total_delegated_amount, validator_mining_power, total_mining_power
+    );
+    if validator_mining_power > total_mining_power {
+        return Err(StdError::generic_err(
+            "validator mining power cannot be greater than total mining power",
+        ));
+    }
+    let expected_delegated_amount =
+        Decimal::from_ratio(validator_mining_power, total_mining_power).mul(total_delegated_amount);
+    Ok(expected_delegated_amount)
+}
+
+#[test]
+fn test_compute_target_delegation_from_mining_power() {
+    let total_delegated_amount = Uint128::from(1_000_000u128);
+    let validator_mining_power = Uint128::from(100_000u128);
+    let total_mining_power = Uint128::from(1_000_000u128);
+    let expected_delegated_amount = Uint128::from(100_000u128);
+    assert_eq!(
+        compute_target_delegation_from_mining_power(
+            total_delegated_amount,
+            validator_mining_power,
+            total_mining_power
+        )
+        .unwrap(),
+        expected_delegated_amount
+    );
+
+    let total_delegated_amount = Uint128::from(1_000_000u128);
+    let validator_mining_power = Uint128::from(5_000_000u128);
+    let total_mining_power = Uint128::from(15_000_000u128);
+    let expected_delegated_amount = Uint128::from(333_333u128);
+    assert_eq!(
+        compute_target_delegation_from_mining_power(
+            total_delegated_amount,
+            validator_mining_power,
+            total_mining_power
+        )
+        .unwrap(),
+        expected_delegated_amount
+    );
+
+    let total_delegated_amount = Uint128::from(1_000_000u128);
+    let total_mining_power = Uint128::from(5_000_000u128);
+    let validator_mining_power = Uint128::from(1_000_000u128);
+    let expected_delegated_amount = Uint128::from(200_000u128);
+    assert_eq!(
+        compute_target_delegation_from_mining_power(
+            total_delegated_amount,
+            validator_mining_power,
+            total_mining_power
+        )
+        .unwrap(),
+        expected_delegated_amount
+    );
 }
 
 /// Compute redelegation moves that will make each validator's delegation the targeted amount (hopefully
