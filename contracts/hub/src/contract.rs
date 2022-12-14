@@ -256,7 +256,7 @@ pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> StdResult<Response>
                     .fee_account_type
                     .save(deps.storage, &FeeType::Wallet)?;
             }
-            "2.1.13" => {
+            "2.1.12" => {
                 let state = State::default();
                 state.miner_entropy.save(
                     deps.storage,
@@ -273,11 +273,11 @@ pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> StdResult<Response>
                     .miner_last_mined_timestamp
                     .save(deps.storage, &env.block.time.seconds().into())?;
             }
-            "2.1.14" => {
+            "2.1.13" => {
                 let state = State::default();
                 state.miner_difficulty.save(deps.storage, &1u64.into())?;
             }
-            "2.1.15" => {
+            "2.1.14" => {
                 let state = State::default();
                 state
                     .miner_last_mined_block

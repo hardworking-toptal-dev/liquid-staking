@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use cosmwasm_std::testing::{BankQuerier, StakingQuerier, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    from_binary, from_slice, Addr, Coin, Empty, FullDelegation, Querier, QuerierResult,
-    QueryRequest, SystemError, WasmQuery,
+    from_binary, from_slice, Addr, Coin, Decimal, Empty, FullDelegation, Querier, QuerierResult,
+    QueryRequest, SystemError, Validator, WasmQuery,
 };
 use cw20::Cw20QueryMsg;
 
@@ -73,8 +73,16 @@ impl CustomQuerier {
                 accumulated_rewards: vec![],
             })
             .collect::<Vec<_>>();
-
-        self.staking_querier = StakingQuerier::new("native_token", &[], &fds);
+        let validators: Vec<Validator> = delegations
+            .iter()
+            .map(|d| Validator {
+                address: d.validator.clone(),
+                commission: Decimal::zero(),
+                max_commission: Decimal::zero(),
+                max_change_rate: Decimal::zero(),
+            })
+            .collect();
+        self.staking_querier = StakingQuerier::new("native_token", &validators, &fds);
     }
 
     pub fn handle_query(&self, request: &QueryRequest<Empty>) -> QuerierResult {

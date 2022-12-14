@@ -1201,13 +1201,11 @@ pub fn submit_proof(
     let miner_entropy_draft = state.miner_entropy_draft.load(deps.storage)?;
     let fee_account_type = state.fee_account_type.load(deps.storage)?;
     let difficulty = state.miner_difficulty.load(deps.storage)?;
-    let miner_last_mined_timestamp = state.miner_last_mined_timestamp.load(deps.storage)?;
     let miner_last_mined_block = state
         .miner_last_mined_block
         .load(deps.storage)
         // defaults to previous block height
         .or_else(|_| -> StdResult<Uint64> { Ok(Uint64::from(env.block.height - 1)) })?;
-    let total_mining_power = state.total_mining_power.load(deps.storage)?;
 
     let entropy_hash = compute_miner_proof(&miner_entropy, &sender.to_string(), nonce)?;
 

@@ -6,7 +6,7 @@ use cosmos_sdk_proto::cosmos::staking::v1beta1::{MsgDelegate, MsgUndelegate};
 use cosmwasm_std::testing::{mock_env, mock_info, MockApi, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
     from_binary, to_binary, Addr, BankMsg, Coin, CosmosMsg, Decimal, Event, Order, OwnedDeps,
-    Reply, ReplyOn, StdError, SubMsg, SubMsgResponse, Uint128, WasmMsg,
+    Reply, ReplyOn, StdError, SubMsg, SubMsgResponse, Uint128, Uint64, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, MinterResponse};
 use cw20_base::msg::InstantiateMsg as Cw20InstantiateMsg;
@@ -1691,6 +1691,7 @@ fn transferring_ownership() {
     let owner = state.owner.load(deps.as_ref().storage).unwrap();
     assert_eq!(owner, Addr::unchecked("jake"));
 }
+
 #[test]
 fn splitting_fees() {
     let mut deps = setup_test();
@@ -1791,6 +1792,41 @@ fn splitting_fees() {
         }
     );
 }
+
+// Test for ExecuteMsg::SubmitProof { nonce: Uint64, validator: String  }
+#[test]
+fn submit_proof() {
+    let mut deps = setup_test();
+    let state = State::default();
+    let miner_entropy =
+        "df5c2d1c1e799c13e81ef0d24acdb338e9da760af9afcd1bfbde40d61fed8996".to_string();
+    let miner_address = "joe1gh9nds8amsy33ewpt97gj4n99436hftz2zl79q".to_string();
+    let nonce = Uint64::from(121063160u64);
+    deps.querier.set_staking_delegations(&[
+        Delegation::new("alice", 341667, "uxyz"),
+        Delegation::new("bob", 341667, "uxyz"),
+        Delegation::new("charlie", 341666, "uxyz"),
+    ]);
+    state
+        .miner_entropy
+        .save(deps.as_mut().storage, &miner_entropy)
+        .unwrap();
+    state
+        .miner_difficulty
+        .save(deps.as_mut().storage, &Uint64::new(5))
+        .unwrap();
+    let err = execute(
+        deps.as_mut(),
+        mock_env(),
+        mock_info(&miner_address.to_string(), &[]),
+        ExecuteMsg::SubmitProof {
+            nonce,
+            validator: "alice".to_string(),
+        },
+    )
+    .unwrap();
+}
+
 //--------------------------------------------------------------------------------------------------
 // Queries
 //--------------------------------------------------------------------------------------------------
