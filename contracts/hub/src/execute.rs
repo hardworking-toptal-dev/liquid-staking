@@ -1,4 +1,6 @@
+use std::cmp::Ordering;
 use std::convert::TryInto;
+use std::ops::Mul;
 use std::str::FromStr;
 
 use cosmwasm_std::{
@@ -232,20 +234,67 @@ pub fn harvest(deps: DepsMut, env: Env, sender: Addr) -> StdResult<Response> {
 }
 
 pub fn calculate_target_delegation_from_mining_power(
-    deps: &DepsMut,
-    validator_address: String,
-    validator_delegated_amount: Uint128,
     total_delegated_amount: Uint128,
+    validator_mining_power: Uint128,
     total_mining_power: Uint128,
 ) -> StdResult<Uint128> {
-    let state = State::default();
-    let dpow_mining_power = state
-        .validator_mining_powers
-        .may_load(deps.storage, validator_address)?
-        .unwrap_or_default();
+    println!(
+        "total_delegated_amount: {}, validator_mining_power: {}, total_mining_power: {}",
+        total_delegated_amount, validator_mining_power, total_mining_power
+    );
+    if validator_mining_power > total_mining_power {
+        return Err(StdError::generic_err(
+            "validator mining power cannot be greater than total mining power",
+        ));
+    }
     let expected_delegated_amount =
-        (dpow_mining_power * total_delegated_amount) / total_mining_power;
+        Decimal::from_ratio(validator_mining_power, total_mining_power).mul(total_delegated_amount);
     Ok(expected_delegated_amount)
+}
+
+#[test]
+fn test_calculate_target_delegation_from_mining_power() {
+    let total_delegated_amount = Uint128::from(1_000_000u128);
+    let validator_mining_power = Uint128::from(100_000u128);
+    let total_mining_power = Uint128::from(1_000_000u128);
+    let expected_delegated_amount = Uint128::from(100_000u128);
+    assert_eq!(
+        calculate_target_delegation_from_mining_power(
+            total_delegated_amount,
+            validator_mining_power,
+            total_mining_power
+        )
+        .unwrap(),
+        expected_delegated_amount
+    );
+
+    let total_delegated_amount = Uint128::from(1_000_000u128);
+    let validator_mining_power = Uint128::from(5_000_000u128);
+    let total_mining_power = Uint128::from(15_000_000u128);
+    let expected_delegated_amount = Uint128::from(333_333u128);
+    assert_eq!(
+        calculate_target_delegation_from_mining_power(
+            total_delegated_amount,
+            validator_mining_power,
+            total_mining_power
+        )
+        .unwrap(),
+        expected_delegated_amount
+    );
+
+    let total_delegated_amount = Uint128::from(1_000_000u128);
+    let total_mining_power = Uint128::from(5_000_000u128);
+    let validator_mining_power = Uint128::from(1_000_000u128);
+    let expected_delegated_amount = Uint128::from(200_000u128);
+    assert_eq!(
+        calculate_target_delegation_from_mining_power(
+            total_delegated_amount,
+            validator_mining_power,
+            total_mining_power
+        )
+        .unwrap(),
+        expected_delegated_amount
+    );
 }
 
 /// NOTE:
@@ -281,31 +330,65 @@ pub fn reinvest(deps: DepsMut, env: Env) -> StdResult<Response> {
             .ok_or_else(|| StdError::generic_err("no native amount available to be bonded"))?
             .amount;
     */
-    let total_mining_power = state.total_mining_power.load(deps.storage)?;
+    let total_mining_power = state
+        .total_mining_power
+        .may_load(deps.storage)?
+        .unwrap_or_default();
     let delegations = query_delegations(&deps.querier, &validators, &env.contract.address, &denom)?;
     let total_bonded = delegations.iter().fold(0u128, |acc, d| acc + d.amount);
     let mut validator = &delegations[0].validator;
+    let validator_mining_power = state
+        .validator_mining_powers
+        .may_load(deps.storage, validator.to_string())?
+        .unwrap_or_default();
     let target_delegation = calculate_target_delegation_from_mining_power(
-        &deps,
-        validator.to_string(),
-        delegations[0].amount.into(),
         total_bonded.into(),
+        validator_mining_power,
         total_mining_power,
     )?;
-    let mut diff = delegations[0].amount.abs_diff(target_delegation.u128());
+    println!(
+        "total mining power: {} total bonded: {}",
+        total_mining_power, total_bonded
+    );
+
+    let mut cmp = target_delegation.u128().cmp(&delegations[0].amount);
+    let mut diff = if cmp.is_gt() {
+        target_delegation.u128().abs_diff(delegations[0].amount)
+    } else {
+        0u128
+    };
+    println!(
+        "validator: {} amount: {} target: {} diff: {}",
+        validator,
+        delegations[0].amount,
+        target_delegation.u128(),
+        diff
+    );
+
     for d in &delegations[1..] {
+        let current_validator_mining_power = state
+            .validator_mining_powers
+            .may_load(deps.storage, d.validator.to_string())?
+            .unwrap_or_default();
         let current_td = calculate_target_delegation_from_mining_power(
-            &deps,
-            validator.to_string(),
-            d.amount.into(),
             total_bonded.into(),
+            current_validator_mining_power,
             total_mining_power,
         )?;
-        let current_diff = d.amount.abs_diff(current_td.u128());
+        let current_diff = current_td.u128().abs_diff(d.amount);
+        println!(
+            "validator: {} amount: {} target: {} diff: {}",
+            d.validator,
+            d.amount,
+            current_td.u128(),
+            current_diff
+        );
+        let current_cmp = current_td.u128().cmp(&d.amount);
         // if there is a bigger gap to fill with the current validator, use it
-        if diff < current_diff {
+        if current_cmp > cmp || (current_cmp.is_gt() && current_diff > diff) {
             validator = &d.validator;
             diff = current_diff;
+            cmp = current_cmp;
         }
     }
     let fee_amount = if fee.is_zero() {
@@ -725,10 +808,11 @@ pub fn rebalance(deps: DepsMut, env: Env, minimum: Uint128) -> StdResult<Respons
     let new_redelegations =
         compute_redelegations_for_rebalancing(validators_active, &delegations, minimum, |d| {
             calculate_target_delegation_from_mining_power(
-                &deps,
-                d.validator.clone(),
-                d.amount.into(),
                 total_delegated_amount.into(),
+                state
+                    .validator_mining_powers
+                    .may_load(deps.storage, d.validator.clone())?
+                    .unwrap_or_default(),
                 total_mining_power,
             )
         })?;
@@ -1071,13 +1155,15 @@ fn test_create_difficulty_prefix() {
     let difficulty = Uint64::from(3u64);
     let difficulty_string = create_difficulty_prefix(difficulty);
     assert_eq!(difficulty_string, "000");
+    let difficulty = Uint64::from(1u64);
+    let difficulty_string = create_difficulty_prefix(difficulty);
+    assert_eq!(difficulty_string, "0");
 }
 
 pub fn compute_miner_proof(
     miner_entropy: &str,
     miner_address: &str,
     nonce: Uint64,
-    difficulty: Uint64,
 ) -> StdResult<String> {
     // validate block hash
     let mut hasher = Sha256::new();
@@ -1088,13 +1174,6 @@ pub fn compute_miner_proof(
     let entropy_hash = hex::encode(result);
     let entropy_hash = String::from_utf8(entropy_hash.as_bytes().to_vec())?;
 
-    let difficulty_string = create_difficulty_prefix(difficulty);
-
-    if !entropy_hash.starts_with(&difficulty_string) {
-        return Err(StdError::generic_err(
-            "block hash does not meet difficulty requirement",
-        ));
-    }
     Ok(entropy_hash)
 }
 // unit test for compute_miner_proof
@@ -1103,11 +1182,10 @@ fn test_compute_miner_proof() {
     let miner_entropy = "abcdefg".to_string();
     let miner_address = "cosmos123".to_string();
     let nonce = Uint64::from(3825297897467829464u64);
-    let difficulty = Uint64::from(1u64);
-    let result = compute_miner_proof(&miner_entropy, &miner_address, nonce, difficulty);
+    let result = compute_miner_proof(&miner_entropy, &miner_address, nonce);
     assert_eq!(
         result.unwrap(),
-        "0956b8dd2b60206c9b7ee78a6b0c92faf9c8ba981927effbeea99fbbf4a5a9cd".to_uppercase()
+        "eb7d03dd856d797aea48b2a080357810c50b366d2a40fd358e1f1b18d3a62d5c"
     );
 }
 
@@ -1140,8 +1218,15 @@ pub fn submit_proof(
         .or_else(|_| -> StdResult<Uint64> { Ok(Uint64::from(env.block.height - 1)) })?;
     let total_mining_power = state.total_mining_power.load(deps.storage)?;
 
-    let entropy_hash = compute_miner_proof(&miner_entropy, &sender.to_string(), nonce, difficulty)?;
+    let entropy_hash = compute_miner_proof(&miner_entropy, &sender.to_string(), nonce)?;
 
+    let difficulty_string = create_difficulty_prefix(difficulty);
+
+    if !entropy_hash.starts_with(&difficulty_string) {
+        return Err(StdError::generic_err(
+            "block hash does not meet difficulty requirement",
+        ));
+    }
     // compute hash of miner_entropy_draft and entropy_hash
     let mut hasher = Sha256::new();
     hasher.update(&miner_entropy_draft);

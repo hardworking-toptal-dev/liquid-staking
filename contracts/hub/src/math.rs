@@ -153,6 +153,12 @@ pub(crate) fn compute_redelegations_for_rebalancing(
     let native_staked: u128 = current_delegations.iter().map(|d| d.amount).sum();
     let validator_count = validators_active.len() as u128;
 
+    // print native_staked divided by validator count
+    println!("native_staked = {}", native_staked);
+    println!("validator_count = {}", validator_count);
+    let native_per_validator = native_staked / validator_count;
+    println!("native_per_validator = {}", native_per_validator);
+
     let remainder = native_staked % validator_count;
 
     // If a validator's current delegated amount is greater than the target amount, native will be

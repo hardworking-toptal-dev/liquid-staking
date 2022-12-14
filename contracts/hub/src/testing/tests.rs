@@ -1,9 +1,12 @@
+use std::io::Read;
+use std::ops::Mul;
 use std::str::FromStr;
 
+use cosmos_sdk_proto::cosmos::staking::v1beta1::{MsgDelegate, MsgUndelegate};
 use cosmwasm_std::testing::{mock_env, mock_info, MockApi, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    to_binary, Addr, BankMsg, Coin, CosmosMsg, Decimal, Event, Order, OwnedDeps, Reply, ReplyOn,
-    StdError, SubMsg, SubMsgResponse, Uint128, WasmMsg,
+    from_binary, to_binary, Addr, BankMsg, Coin, CosmosMsg, Decimal, Event, Order, OwnedDeps,
+    Reply, ReplyOn, StdError, SubMsg, SubMsgResponse, Uint128, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, MinterResponse};
 use cw20_base::msg::InstantiateMsg as Cw20InstantiateMsg;
@@ -392,7 +395,7 @@ fn harvesting() {
     let res = execute(
         deps.as_mut(),
         harvest_env.clone(),
-        mock_info("worker", &[]),
+        mock_info(&harvest_env.contract.address.to_string(), &[]),
         ExecuteMsg::Harvest {},
     )
     .unwrap();
@@ -516,6 +519,39 @@ fn reinvesting() {
             ],
         )
         .unwrap();
+
+    let modifier = 1_000_000_000_000_000_000_u128;
+
+    state
+        .total_mining_power
+        .save(deps.as_mut().storage, &Uint128::from(15_u128.mul(modifier)))
+        .unwrap();
+
+    state
+        .validator_mining_powers
+        .save(
+            deps.as_mut().storage,
+            "alice".to_string(),
+            &5_u128.mul(modifier).into(),
+        )
+        .unwrap();
+    state
+        .validator_mining_powers
+        .save(
+            deps.as_mut().storage,
+            "bob".to_string(),
+            &5_u128.mul(modifier).into(),
+        )
+        .unwrap();
+    state
+        .validator_mining_powers
+        .save(
+            deps.as_mut().storage,
+            "charlie".to_string(),
+            &5_u128.mul(modifier).into(),
+        )
+        .unwrap();
+
     let env = mock_env();
     // Bob has the smallest amount of delegations, so all proceeds go to him
     let res = execute(
@@ -525,6 +561,34 @@ fn reinvesting() {
         ExecuteMsg::Callback(CallbackMsg::Reinvest {}),
     )
     .unwrap();
+
+    // decode first message as to MsgUndelegate
+    let decoded_message =
+        if let CosmosMsg::Stargate { type_url, value } = res.messages[0].msg.clone() {
+            // assert_eq!(type_url, "/liquidstaking.staking.v1beta1.MsgDelegate");
+            let msg_decoded: MsgDelegate = prost::Message::decode(value.as_slice()).unwrap();
+            // assert_eq!(msg_decoded.validator_address, "bob");
+            Some(msg_decoded)
+        } else {
+            None
+        };
+    // decode all messages to MsgUndelegate and transpose as result
+    let decoded_messages = res
+        .messages
+        .iter()
+        .map(|msg| {
+            if let CosmosMsg::Stargate { type_url, value } = msg.msg.clone() {
+                // assert_eq!(type_url, "/liquidstaking.staking.v1beta1.MsgDelegate");
+                let msg_decoded: MsgDelegate = prost::Message::decode(value.as_slice()).unwrap();
+                // assert_eq!(msg_decoded.validator_address, "bob");
+                Some(msg_decoded)
+            } else {
+                None
+            }
+        })
+        .filter(Option::is_some)
+        .collect::<Option<Vec<MsgDelegate>>>()
+        .unwrap();
 
     assert_eq!(res.messages.len(), 2);
     assert_eq!(
@@ -536,7 +600,8 @@ fn reinvesting() {
                 .unwrap(),
             gas_limit: None,
             reply_on: ReplyOn::Never
-        }
+        },
+        "bob"
     );
     let send_msg = BankMsg::Send {
         to_address: "the_fee_man".into(),
@@ -549,7 +614,8 @@ fn reinvesting() {
             msg: CosmosMsg::Bank(send_msg),
             gas_limit: None,
             reply_on: ReplyOn::Never
-        }
+        },
+        "fee"
     );
 
     // Storage should have been updated
@@ -560,6 +626,7 @@ fn reinvesting() {
             69420,
             "ibc/0471F1C4E7AFD3F07702BEF6DC365268D64570F7C1FDC98EA6098DD6DE59817B"
         )],
+        "unlocked_coins"
     );
 }
 
@@ -592,6 +659,38 @@ fn reinvesting_fee_split() {
                     "ibc/0471F1C4E7AFD3F07702BEF6DC365268D64570F7C1FDC98EA6098DD6DE59817B",
                 ),
             ],
+        )
+        .unwrap();
+
+    let modifier = 1_000_000_000_000_000_000_u128;
+
+    state
+        .total_mining_power
+        .save(deps.as_mut().storage, &Uint128::from(15_u128.mul(modifier)))
+        .unwrap();
+
+    state
+        .validator_mining_powers
+        .save(
+            deps.as_mut().storage,
+            "alice".to_string(),
+            &1_u128.mul(modifier).into(),
+        )
+        .unwrap();
+    state
+        .validator_mining_powers
+        .save(
+            deps.as_mut().storage,
+            "bob".to_string(),
+            &12_u128.mul(modifier).into(),
+        )
+        .unwrap();
+    state
+        .validator_mining_powers
+        .save(
+            deps.as_mut().storage,
+            "charlie".to_string(),
+            &2_u128.mul(modifier).into(),
         )
         .unwrap();
 
@@ -1239,7 +1338,7 @@ fn withdrawing_unbonded() {
         .previous_batches
         .load(deps.as_ref().storage, 1u64)
         .unwrap_err();
-    assert_eq!(err, StdError::generic_err("pfc_steak::hub::Batch"));
+    assert_eq!(err, StdError::not_found("pfc_steak::hub::Batch"));
 
     let err = state
         .unbond_requests
@@ -1893,7 +1992,7 @@ fn computing_redelegations_for_rebalancing() {
             &current_delegations,
             Uint128::from(10_u64),
             // mock the same mining power on every validator
-            |_| Ok(25788_u128.into())
+            |_| Ok(50589_u128.into())
         )
         .unwrap(),
         partially_expected,
@@ -1909,7 +2008,7 @@ fn computing_redelegations_for_rebalancing() {
             &current_delegations,
             Uint128::from(15_000_u64),
             // mock the same mining power on every validator
-            |d| Ok(25788u128.into())
+            |d| Ok(50589u128.into())
         )
         .unwrap(),
         partially_expected_minimums,
