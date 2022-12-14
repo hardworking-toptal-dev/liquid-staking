@@ -5,7 +5,7 @@ use std::str::FromStr;
 
 use cosmwasm_std::{
     to_binary, Addr, BankMsg, Coin, CosmosMsg, Decimal, Decimal256, DepsMut, Env, Event, Order,
-    Response, StdError, StdResult, SubMsg, SubMsgResponse, Uint128, Uint64, WasmMsg,
+    Response, StdError, StdResult, Storage, SubMsg, SubMsgResponse, Uint128, Uint64, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, MinterResponse};
 use cw20_base::msg::InstantiateMsg as Cw20InstantiateMsg;
@@ -1077,7 +1077,7 @@ pub fn update_fee(deps: DepsMut, sender: Addr, new_fee: Decimal) -> StdResult<Re
 // update entropy execute function
 pub fn update_entropy(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     _sender: Addr,
     entropy: String,
 ) -> StdResult<Response> {
@@ -1098,6 +1098,8 @@ pub fn update_entropy(
                 let entropy_hash = String::from_utf8(entropy_hash.as_bytes().to_vec())?;
                 Ok(entropy_hash)
             })?;
+
+    update_difficulty(deps.storage, env.block.time.seconds())?;
 
     Ok(Response::new()
         .add_attribute("action", "steakhub/update_entropy")
@@ -1152,6 +1154,32 @@ fn test_compute_miner_proof() {
     );
 }
 
+pub fn update_difficulty(store: &mut dyn Storage, block_time: u64) -> StdResult<()> {
+    let state = State::default();
+    let miner_last_mined_timestamp = state.miner_last_mined_timestamp.load(store)?;
+    let difficulty = state.miner_difficulty.load(store)?;
+    // update mining difficulty based on the mining duration ceiling and floor
+    let mining_duration = block_time - miner_last_mined_timestamp.u64();
+
+    // update difficulty
+    if mining_duration > TARGET_MINING_DURATION_CEILING_SECONDS && difficulty.u64() > 1 {
+        // too hard to mine, decrease difficulty
+        state
+            .miner_difficulty
+            .update(store, |difficulty| -> StdResult<Uint64> {
+                Ok(difficulty.checked_sub(1u64.into())?)
+            })?;
+    } else if mining_duration < TARGET_MINING_DURATION_FLOOR_SECONDS {
+        // too easy to mine, increase difficulty
+        state
+            .miner_difficulty
+            .update(store, |difficulty| -> StdResult<Uint64> {
+                Ok(difficulty.checked_add(1u64.into())?)
+            })?;
+    }
+    Ok(())
+}
+
 // submit proof execute function
 // * validates block hash of entropy + sender bech32 + sender nonce meets the required mining difficulty
 // * sets miner_entropy to equal a hash of the block hash and miner_entropy_draft
@@ -1201,6 +1229,8 @@ pub fn submit_proof(
     // blocks since last mined block
     let mining_duration_blocks = env.block.height - miner_last_mined_block.u64();
 
+    update_difficulty(deps.storage, env.block.time.seconds())?;
+
     // update validator mining power
     state.validator_mining_powers.update(
         deps.storage,
@@ -1239,26 +1269,6 @@ pub fn submit_proof(
     state
         .miner_last_mined_block
         .save(deps.storage, &env.block.height.into())?;
-
-    // update mining difficulty based on the mining duration ceiling and floor
-    let mining_duration = env.block.time.seconds() - miner_last_mined_timestamp.u64();
-
-    // update difficulty
-    if mining_duration > TARGET_MINING_DURATION_CEILING_SECONDS && difficulty.u64() > 1 {
-        // too hard to mine, decrease difficulty
-        state
-            .miner_difficulty
-            .update(deps.storage, |difficulty| -> StdResult<Uint64> {
-                Ok(difficulty.checked_sub(1u64.into())?)
-            })?;
-    } else if mining_duration < TARGET_MINING_DURATION_FLOOR_SECONDS {
-        // too easy to mine, increase difficulty
-        state
-            .miner_difficulty
-            .update(deps.storage, |difficulty| -> StdResult<Uint64> {
-                Ok(difficulty.checked_add(1u64.into())?)
-            })?;
-    }
 
     // set fee account
     if fee_account_type != FeeType::Wallet {
