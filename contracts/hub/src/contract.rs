@@ -1,6 +1,6 @@
 use cosmwasm_std::{
     entry_point, from_binary, to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Reply,
-    Response, StdError, StdResult,
+    Response, StdError, StdResult, Uint128,
 };
 use cw20::Cw20ReceiveMsg;
 
@@ -276,6 +276,15 @@ pub fn migrate(deps: DepsMut, env: Env, _msg: MigrateMsg) -> StdResult<Response>
             "2.1.14" => {
                 let state = State::default();
                 state.miner_difficulty.save(deps.storage, &1u64.into())?;
+            }
+            "2.1.15" => {
+                let state = State::default();
+                state
+                    .miner_last_mined_block
+                    .save(deps.storage, &env.block.height.into())?;
+                state
+                    .total_mining_power
+                    .save(deps.storage, &Uint128::zero())?;
             }
             _ => {}
         },

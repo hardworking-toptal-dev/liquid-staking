@@ -80,6 +80,32 @@ pub fn instantiate(deps: DepsMut, env: Env, msg: InstantiateMsg) -> StdResult<Re
         .validators_active
         .save(deps.storage, &msg.validators)?;
 
+    state.miner_entropy.save(
+        deps.storage,
+        // arbitrary entropy
+        &env.contract.address.to_string(),
+    )?;
+    state.miner_entropy_draft.save(
+        deps.storage,
+        // arbitrary entropy
+        &env.contract.address.to_string(),
+    )?;
+
+    // difficulty starts at one
+    state.miner_difficulty.save(deps.storage, &1u64.into())?;
+    // last mined block starts at current timestamp
+    state
+        .miner_last_mined_timestamp
+        .save(deps.storage, &env.block.time.seconds().into())?;
+    // last mined block starts at current block height
+    state
+        .miner_last_mined_block
+        .save(deps.storage, &env.block.height.into())?;
+    // total mining power starts at zero
+    state
+        .total_mining_power
+        .save(deps.storage, &Uint128::zero())?;
+
     Ok(Response::new().add_submessage(SubMsg::reply_on_success(
         CosmosMsg::Wasm(WasmMsg::Instantiate {
             admin: Some(msg.owner), // use the owner as admin for now; can be changed later by a `MsgUpdateAdmin`

@@ -2174,6 +2174,8 @@ fn computing_redelegations_for_rebalancing_with_mining() {
         "charlie".to_string(),
         "dave".to_string(),
         "evan".to_string(),
+        // add steve to ensure still works for validators with no mining power
+        "steve".to_string(),
     ];
     let mining_powers_by_validator = vec![
         ("alice".to_string(), 1002_u128),
