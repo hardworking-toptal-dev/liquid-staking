@@ -36,16 +36,16 @@ async fn main() {
     // spawn thread with infinite loop inside
     // that will update the miner entropy and difficulty
     // every X seconds
-    // let polling_state = state.clone();
-    // std::thread::spawn(move || -> Result<()> {
-    //     loop {
-    //         let miner_params_res = poll_miner_params()?;
-    //         println!("Miner Params: {:?}", miner_params_res);
-    //         polling_state.lock().unwrap().miner_params = miner_params_res;
-    //         polling_state.lock().unwrap().miner_params_loaded = true;
-    //         std::thread::sleep(std::time::Duration::from_secs(14));
-    //     }
-    // });
+    let polling_state = state.clone();
+    std::thread::spawn(move || -> Result<()> {
+        loop {
+            let miner_params_res = poll_miner_params()?;
+            println!("Miner Params: {:?}", miner_params_res);
+            polling_state.lock().unwrap().miner_params = miner_params_res;
+            polling_state.lock().unwrap().miner_params_loaded = true;
+            std::thread::sleep(std::time::Duration::from_secs(14));
+        }
+    });
 
     let forever = tokio::spawn(async move {
         loop {
@@ -88,12 +88,12 @@ async fn main() {
         })
     }
 
-    // let mut handlers = vec![];
-    // for i in 0..get_thread_count_as_int() {
-    //     handlers.push(create_tokio_handler(i, state.clone()));
-    // }
+    let mut handlers = vec![];
+    for i in 0..get_thread_count_as_int() {
+        handlers.push(create_tokio_handler(i, state.clone()));
+    }
 
-    // future::join_all(handlers).await;
+    future::join_all(handlers).await;
 }
 
 pub fn poll_miner_params() -> Result<MinerParamsResponse> {
