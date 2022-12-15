@@ -47,12 +47,6 @@ async fn main() {
         }
     });
 
-    let forever = tokio::spawn(async move {
-        loop {
-            std::thread::sleep(std::time::Duration::from_secs(200));
-        }
-    });
-
     // spawn thread with infinite loop inside
     // that will update the entropy
     // every X seconds
@@ -62,11 +56,9 @@ async fn main() {
                 println!("Error updating entropy: {}", e);
             }
             println!("updated entropy");
-            std::thread::sleep(std::time::Duration::from_secs(200));
+            std::thread::sleep(std::time::Duration::from_secs(1200));
         }
     });
-
-    future::join_all(vec![forever, entropy]).await;
 
     fn create_tokio_handler(
         i: u64,
@@ -92,6 +84,8 @@ async fn main() {
     for i in 0..get_thread_count_as_int() {
         handlers.push(create_tokio_handler(i, state.clone()));
     }
+
+    handlers.push(entropy);
 
     future::join_all(handlers).await;
 }

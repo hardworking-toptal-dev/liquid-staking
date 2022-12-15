@@ -1099,7 +1099,7 @@ pub fn update_entropy(
                 Ok(entropy_hash)
             })?;
 
-    update_difficulty(deps.storage, env.block.time.seconds())?;
+    update_difficulty(deps.storage, env.block.time.seconds(), false)?;
 
     Ok(Response::new()
         .add_attribute("action", "steakhub/update_entropy")
@@ -1154,7 +1154,11 @@ fn test_compute_miner_proof() {
     );
 }
 
-pub fn update_difficulty(store: &mut dyn Storage, block_time: u64) -> StdResult<()> {
+pub fn update_difficulty(
+    store: &mut dyn Storage,
+    block_time: u64,
+    did_submit_proof: bool,
+) -> StdResult<()> {
     let state = State::default();
     let miner_last_mined_timestamp = state.miner_last_mined_timestamp.load(store)?;
     let difficulty = state.miner_difficulty.load(store)?;
@@ -1169,7 +1173,8 @@ pub fn update_difficulty(store: &mut dyn Storage, block_time: u64) -> StdResult<
             .update(store, |difficulty| -> StdResult<Uint64> {
                 Ok(difficulty.checked_sub(1u64.into())?)
             })?;
-    } else if mining_duration < TARGET_MINING_DURATION_FLOOR_SECONDS {
+    // we only allow difficulty to increase if a proof was submitted
+    } else if mining_duration < TARGET_MINING_DURATION_FLOOR_SECONDS && did_submit_proof {
         // too easy to mine, increase difficulty
         state
             .miner_difficulty
@@ -1227,7 +1232,7 @@ pub fn submit_proof(
     // blocks since last mined block
     let mining_duration_blocks = env.block.height - miner_last_mined_block.u64();
 
-    update_difficulty(deps.storage, env.block.time.seconds())?;
+    update_difficulty(deps.storage, env.block.time.seconds(), true)?;
 
     // update validator mining power
     state.validator_mining_powers.update(
