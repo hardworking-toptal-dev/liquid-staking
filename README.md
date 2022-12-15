@@ -35,7 +35,6 @@ the cli prototype is a rust script that can be used to mine proofs in the termin
 
 #### prerequisites
 * rust installed (https://www.rust-lang.org/tools/install)
-* cargo installed (https://doc.rust-lang.org/cargo/getting-started/installation.html)
 * `joed` installed (https://github.com/Reecepbcups/joe)
 * wallet with ujoe tokens added to `joed keys`
 
@@ -61,7 +60,7 @@ cargo run ./packages/dpow-miner-cli --release
 
 
 
-
+----------------------------------------------------------------------------------
 disclaimer
 
 All software in the repository is considered highly experimental. The author considers JOE tokens to be non-monetary, for testing purposes only. The author is not responsible for any losses incurred by using this software. All software is provided as is, without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with the software or the use or other dealings in the software. 
