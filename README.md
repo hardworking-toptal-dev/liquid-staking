@@ -38,15 +38,20 @@ the cli prototype is a rust script that can be used to mine proofs in the termin
 * `joed` installed (https://github.com/Reecepbcups/joe)
 * wallet added to `joed` keychain (`joed keys add miner --interactive`)
 * joe tokens (ask [joe](https://twitter.com/CosmosDefi) for some after you give him a follow and like all of his youtube videos)
-
+* `jq` installed (https://stedolan.github.io/jq/download/)
 
 run as shown below:
 
+see in [deploy/run-miner.sh](./deploy/run-miner.sh)
+
 ```bash
-VALIDATOR_ADDRESS=joevaloper<YOUR_PREFERRED_VALIDATOR> \
-MINER_ADDRESS=<YOUR_ADDRESS_IN_JOED> \
-CONTRACT_ADDRESS=joe18yn206ypuxay79gjqv6msvd9t2y49w4fz8q7fyenx5aggj0ua37qnv0qf3 \
-RPC_URL=https://joe-rpc.polkachu.com:443 \
+export VALIDATOR_ADDRESS=joevaloper<YOUR_PREFERRED_VALIDATOR>
+export MINER_ADDRESS=<YOUR_ADDRESS_IN_JOED>
+export CONTRACT_ADDRESS=joe18yn206ypuxay79gjqv6msvd9t2y49w4fz8q7fyenx5aggj0ua37qnv0qf3
+export RPC_URL=https://joe-rpc.polkachu.com:443
+# number between 1 and 1000. 1000 is fastest.
+export SPEED=500
+export THREAD_COUNT=2
 cargo run ./packages/dpow-miner-cli --release
 ```
 
