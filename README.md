@@ -49,3 +49,7 @@ CONTRACT_ADDRESS=joe18yn206ypuxay79gjqv6msvd9t2y49w4fz8q7fyenx5aggj0ua37qnv0qf3 
 RPC_URL=https://joe-rpc.polkachu.com:443 \
 cargo run ./packages/dpow-miner-cli --release
 ```
+
+# DISCLAIMER 
+
+All software in the repository is considered highly experimental. The author considers JOE tokens to be non-monetary, for testing purposes only. The author is not responsible for any losses incurred by using this software. All software is provided as is, without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with the software or the use or other dealings in the software. 
