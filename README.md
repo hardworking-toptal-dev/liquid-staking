@@ -24,3 +24,28 @@ at present, 16% all new staking rewards collected by the contract are sent to th
 at present, if a proof takes more than 5 minutes to mine, the difficulty will decrease by 1.
 
 if a proof takes less than 20 seconds to mine, the difficulty will increase by 1.
+
+## mining 
+
+### browser prototype 
+the browser prototype is a rust wasm module that can be used to mine proofs in the browser. a keplr wallet popup will occur every time you mine a proof. you can find this at [https://wetjoe.netlify.app/](https://wetjoe.netlify.app/).
+
+### cli prototype
+the cli prototype is a rust script that can be used to mine proofs in the terminal. you can find this at [./packages/dpow-miner-cli](./packages/dpow-miner-cli). 
+
+#### prerequisites
+* rust installed (https://www.rust-lang.org/tools/install)
+* cargo installed (https://doc.rust-lang.org/cargo/getting-started/installation.html)
+* `joed` installed (https://github.com/Reecepbcups/joe)
+* wallet with ujoe tokens added to `joed keys`
+
+
+run as shown below:
+
+```bash
+VALIDATOR_ADDRESS=joevaloper<YOUR_PREFERRED_VALIDATOR> \
+MINER_ADDRESS=<YOUR_ADDRESS_IN_JOED> \
+CONTRACT_ADDRESS=joe18yn206ypuxay79gjqv6msvd9t2y49w4fz8q7fyenx5aggj0ua37qnv0qf3 \
+RPC_URL=https://joe-rpc.polkachu.com:443 \
+cargo run ./packages/dpow-miner-cli --release
+```
