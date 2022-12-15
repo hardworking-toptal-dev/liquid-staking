@@ -1793,7 +1793,6 @@ fn splitting_fees() {
     );
 }
 
-// Test for ExecuteMsg::SubmitProof { nonce: Uint64, validator: String  }
 #[test]
 fn submit_proof() {
     let mut deps = setup_test();
@@ -1815,7 +1814,7 @@ fn submit_proof() {
         .miner_difficulty
         .save(deps.as_mut().storage, &Uint64::new(5))
         .unwrap();
-    let err = execute(
+    let res = execute(
         deps.as_mut(),
         mock_env(),
         mock_info(&miner_address.to_string(), &[]),
